@@ -1,5 +1,7 @@
 # BangumiBar
 
+本项目完全有ai开发（消耗即将过期token的产物），没有经过全面的测试，可预计的会有奇奇怪怪的bug。主要目的是快速管理在看状态的动画列表，其他功能并未深入开发。如果遇到bug或者有优化的想法可以和我交流，应该会看到233.只有这段话是我手写的，剩下都是ai了。
+
 一个优雅的 macOS 菜单栏追番管理工具，深度集成 [Bangumi](https://bgm.tv/) API，让你在菜单栏上随时掌握追番进度。
 
 ![Platform](https://img.shields.io/badge/platform-macOS-blue)
