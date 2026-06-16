@@ -15,8 +15,8 @@ declare global {
       closeSettings: () => Promise<void>
       getVersion: () => Promise<string>
       showNotification: (title: string, body: string) => Promise<void>
-      getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; hideAfterClick: boolean }>
-      setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; hideAfterClick: boolean }>) => Promise<void>
+      getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>
+      setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => Promise<void>
       platform: NodeJS.Platform
     }
   }

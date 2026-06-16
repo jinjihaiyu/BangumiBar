@@ -34,7 +34,6 @@ function getAppSettings() {
   return {
     openAtLogin: store.get('openAtLogin', false),
     showNotifications: store.get('showNotifications', true),
-    hideAfterClick: store.get('hideAfterClick', true),
     useMirror: store.get('useMirror', false),
   };
 }
@@ -49,9 +48,6 @@ function setAppSettings(settings) {
   }
   if ('showNotifications' in settings) {
     store.set('showNotifications', settings.showNotifications);
-  }
-  if ('hideAfterClick' in settings) {
-    store.set('hideAfterClick', settings.hideAfterClick);
   }
   if ('useMirror' in settings) {
     store.set('useMirror', settings.useMirror);

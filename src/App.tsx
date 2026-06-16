@@ -9,7 +9,6 @@ const BGM_REDIRECT_URI = 'bangumibar://auth'
 type AppSettings = {
   openAtLogin: boolean
   showNotifications: boolean
-  hideAfterClick: boolean
   useMirror: boolean
 }
 
@@ -27,7 +26,6 @@ type BangumiSiteConfig = {
 const DEFAULT_APP_SETTINGS: AppSettings = {
   openAtLogin: false,
   showNotifications: true,
-  hideAfterClick: true,
   useMirror: false
 }
 
@@ -842,10 +840,10 @@ function App() {
     const currentLoadId = ++loadIdRef.current
 
     const cached = persistentCache.get(cacheKey)
-    if (cached && currentLoadId === loadIdRef.current) {
+    if (cached && currentLoadId === loadIdRef.current && !force) {
       setCollections(cached)
       setIsLoading(false)
-      if (!force) fetchAndUpdate(currentLoadId, token, cacheKey)
+      fetchAndUpdate(currentLoadId, token, cacheKey)
       return
     }
     setIsLoading(true); setError(null)
@@ -1046,6 +1044,17 @@ function App() {
     notifCountRef.current = 0; setNotificationCount(0)
   }
 
+  const handleRefreshCollections = async () => {
+    if (!username) return
+    const cacheKey = `${username}_${selectedFilter}_${selectedSubjectType}`
+    localStorage.removeItem(`bgmcache_${cacheKey}`)
+    await Promise.all([
+      loadCollections({ force: true }),
+      loadSearchCorpus()
+    ])
+    showToast('已刷新')
+  }
+
   const updateAppSettings = (settings: Partial<AppSettings>) => {
     const next = { ...appSettings, ...settings }
     setAppSettings(next)
@@ -1182,7 +1191,7 @@ function App() {
           </div>
           <div className="settings-section">
             <h3>账号</h3>
-            <div className="settings-item" onClick={() => (window as any).electronAPI?.openExternal?.(`${activeSite.webBase}/${user?.username}`)}>
+            <div className="settings-item" onClick={() => (window as any).electronAPI?.openExternal?.(`${activeSite.webBase}/user/${user?.username}`)}>
               <span className="settings-icon">🌐</span>
               <span className="settings-item-text">访问 Bangumi 主页</span>
               <span className="settings-item-hint">↗</span>
@@ -1211,16 +1220,6 @@ function App() {
                 <div className="settings-item-hint">有新集更新时发送通知</div>
               </div>
               <div className={`toggle-switch ${appSettings.showNotifications ? 'on' : ''}`}>
-                <div className="toggle-knob" />
-              </div>
-            </div>
-            <div className="settings-item toggle-item" onClick={() => updateAppSettings({ hideAfterClick: !appSettings.hideAfterClick })}>
-              <span className="settings-icon">👆</span>
-              <div className="settings-item-info">
-                <div className="settings-item-text">点击后隐藏</div>
-                <div className="settings-item-hint">点击集数后自动关闭面板</div>
-              </div>
-              <div className={`toggle-switch ${appSettings.hideAfterClick ? 'on' : ''}`}>
                 <div className="toggle-knob" />
               </div>
             </div>
@@ -1288,7 +1287,7 @@ function App() {
             onClick={() => setSelectedFilter(f.value)}>{f.label}</button>
         ))}
         <div className="filter-spacer" />
-        <button className="filter-refresh-btn" onClick={() => loadCollections({ force: true })} title="刷新">↻</button>
+        <button className="filter-refresh-btn" onClick={() => handleRefreshCollections()} title="刷新">↻</button>
         <span className="filter-count">{searchQuery.trim() ? `${searchResults.length}条结果` : `${filteredCollections.length}部`}</span>
       </div>
 
