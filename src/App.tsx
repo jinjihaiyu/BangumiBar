@@ -5,8 +5,88 @@ import { isAired, calcUnwatchedCount, filterMainStoryEpisodes, getEpisodeNumber,
 const BGM_CLIENT_ID = 'bgm601969ef220ea48ae'
 const BGM_CLIENT_SECRET = 'adcf8bf04974ddcb88e5425e194da65c'
 const BGM_REDIRECT_URI = 'bangumibar://auth'
-const BGM_API_BASE = 'https://api.bgm.tv'
-const BGM_OAUTH_BASE = 'https://bgm.tv'
+
+type AppSettings = {
+  openAtLogin: boolean
+  showNotifications: boolean
+  hideAfterClick: boolean
+  useMirror: boolean
+}
+
+type BangumiSiteKey = 'origin' | 'mirror'
+
+type BangumiSiteConfig = {
+  webBase: string
+  apiBase: string
+  lainBase: string
+  fastBase: string
+  nextBase: string
+  doujinBase: string
+}
+
+const DEFAULT_APP_SETTINGS: AppSettings = {
+  openAtLogin: false,
+  showNotifications: true,
+  hideAfterClick: true,
+  useMirror: false
+}
+
+const BANGUMI_SITES: Record<BangumiSiteKey, BangumiSiteConfig> = {
+  origin: {
+    webBase: 'https://bgm.tv',
+    apiBase: 'https://api.bgm.tv',
+    lainBase: 'https://lain.bgm.tv',
+    fastBase: 'https://fast.bgm.tv',
+    nextBase: 'https://next.bgm.tv',
+    doujinBase: 'https://doujin.bgm.tv'
+  },
+  mirror: {
+    webBase: 'https://bangumi.one',
+    apiBase: 'https://api.bangumi.one',
+    lainBase: 'https://lain.bangumi.one',
+    fastBase: 'https://fast.bangumi.one',
+    nextBase: 'https://next.bangumi.one',
+    doujinBase: 'https://doujin.bangumi.one'
+  }
+}
+
+let activeBangumiSite: BangumiSiteKey = 'origin'
+
+function setActiveBangumiSite(useMirror: boolean) {
+  activeBangumiSite = useMirror ? 'mirror' : 'origin'
+}
+
+function getActiveBangumiSite(): BangumiSiteConfig {
+  return BANGUMI_SITES[activeBangumiSite]
+}
+
+async function canReachUrl(url: string, timeoutMs = 2500): Promise<boolean> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'User-Agent': 'BangumiBar/1.0 (Electron)'
+      }
+    })
+    return resp.ok
+  } catch {
+    return false
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+async function canReachOriginBangumi(timeoutMs = 2500): Promise<boolean> {
+  const [webOk, apiOk] = await Promise.all([
+    canReachUrl(BANGUMI_SITES.origin.webBase, timeoutMs),
+    canReachUrl(`${BANGUMI_SITES.origin.apiBase}/v0/subjects/1`, timeoutMs)
+  ])
+  return webOk && apiOk
+}
 
 const SUBJECT_TYPES = [
   { value: 2, label: '动画', icon: '🎬' },
@@ -74,12 +154,14 @@ const episodeCache = new Map<number, { data: any[]; time: number }>()
 
 const api = {
   getAuthUrl: () => {
+    const site = getActiveBangumiSite()
     const params = new URLSearchParams({ client_id: BGM_CLIENT_ID, response_type: 'code', redirect_uri: BGM_REDIRECT_URI })
-    return `https://bgm.tv/oauth/authorize?${params}`
+    return `${site.webBase}/oauth/authorize?${params}`
   },
 
   getAccessToken: async (code: string) => {
-    const resp = await fetch(`${BGM_OAUTH_BASE}/oauth/access_token`, {
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.webBase}/oauth/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'BangumiBar/1.0 (Electron)' },
       body: new URLSearchParams({ grant_type: 'authorization_code', client_id: BGM_CLIENT_ID, client_secret: BGM_CLIENT_SECRET, code, redirect_uri: BGM_REDIRECT_URI })
@@ -90,7 +172,8 @@ const api = {
   },
 
   refreshAccessToken: async (refreshToken: string) => {
-    const resp = await fetch(`${BGM_OAUTH_BASE}/oauth/access_token`, {
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.webBase}/oauth/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'BangumiBar/1.0 (Electron)' },
       body: new URLSearchParams({ grant_type: 'refresh_token', client_id: BGM_CLIENT_ID, client_secret: BGM_CLIENT_SECRET, refresh_token: refreshToken })
@@ -101,7 +184,8 @@ const api = {
   },
 
   getMe: async (token: string) => {
-    const resp = await fetch(`${BGM_API_BASE}/v0/me`, { headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'BangumiBar/1.0 (Electron)' } })
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.apiBase}/v0/me`, { headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'BangumiBar/1.0 (Electron)' } })
     if (!resp.ok) throw new Error('获取用户信息失败')
     return resp.json()
   },
@@ -109,7 +193,8 @@ const api = {
   getSubject: async (subjectId: number) => {
     const cached = persistentCache.getSubjectCache(subjectId)
     if (cached) return cached
-    const resp = await fetch(`${BGM_API_BASE}/v0/subjects/${subjectId}`, { headers: { 'User-Agent': 'BangumiBar/1.0 (Electron)' } })
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.apiBase}/v0/subjects/${subjectId}`, { headers: { 'User-Agent': 'BangumiBar/1.0 (Electron)' } })
     if (!resp.ok) throw new Error('获取条目详情失败')
     const data = await resp.json()
     persistentCache.setSubjectCache(subjectId, data)
@@ -119,8 +204,9 @@ const api = {
   getCollections: async (token: string, username: string, type: number, subjectType: number) => {
     const limit = 30
     const fetchPage = async (page: number) => {
+      const site = getActiveBangumiSite()
       const offset = (page - 1) * limit
-      const url = `${BGM_API_BASE}/v0/users/${username}/collections?type=${type}&subject_type=${subjectType}&limit=${limit}&offset=${offset}`
+      const url = `${site.apiBase}/v0/users/${username}/collections?type=${type}&subject_type=${subjectType}&limit=${limit}&offset=${offset}`
       const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'BangumiBar/1.0 (Electron)' } })
       if (!resp.ok) throw new Error('获取收藏列表失败')
       return resp.json()
@@ -140,7 +226,8 @@ const api = {
   },
 
   getEpisodes: async (token: string, subjectId: number) => {
-    const resp = await fetch(`${BGM_API_BASE}/v0/users/-/collections/${subjectId}/episodes`, {
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
       headers: { 'Authorization': `Bearer ${token}`, 'User-Agent': 'BangumiBar/1.0 (Electron)' }
     })
     if (!resp.ok) return []
@@ -149,7 +236,8 @@ const api = {
   },
 
   updateEpisodeProgress: async (token: string, episodeId: number, status: number = 2) => {
-    const resp = await fetch(`${BGM_API_BASE}/v0/users/-/collections/-/episodes/${episodeId}`, {
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.apiBase}/v0/users/-/collections/-/episodes/${episodeId}`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'BangumiBar/1.0 (Electron)' },
       body: JSON.stringify({ type: status })
@@ -162,7 +250,8 @@ const api = {
   },
 
   updateCollection: async (token: string, subjectId: number, data: { rating?: number; comment?: string; type?: number }) => {
-    const resp = await fetch(`${BGM_API_BASE}/v0/users/-/collections/${subjectId}`, {
+    const site = getActiveBangumiSite()
+    const resp = await fetch(`${site.apiBase}/v0/users/-/collections/${subjectId}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'User-Agent': 'BangumiBar/1.0 (Electron)' },
       body: JSON.stringify(data)
@@ -673,7 +762,7 @@ function App() {
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subjectId: number; episodeId: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [appSettings, setAppSettings] = useState({ openAtLogin: false, showNotifications: true, hideAfterClick: true })
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_APP_SETTINGS)
   const [searchQuery, setSearchQuery] = useState('')
   const [pendingRating, setPendingRating] = useState<any>(null)
   const [statusEditItem, setStatusEditItem] = useState<{ subject: any; subjectType: number; collectionItem: any } | null>(null)
@@ -684,9 +773,30 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(false)
   const [searchCorpus, setSearchCorpus] = useState<any[]>([])
   const [unwatchedCounts, setUnwatchedCounts] = useState<Record<number, number>>({})
+  const [autoUseMirror, setAutoUseMirror] = useState(false)
 
   const loadIdRef = useRef(0)
   const notifCountRef = useRef(0)
+  const siteProbeIdRef = useRef(0)
+
+  const activeSite = getActiveBangumiSite()
+
+  const resolveBangumiSiteMode = useCallback(async (manualUseMirror: boolean) => {
+    const probeId = ++siteProbeIdRef.current
+    if (manualUseMirror) {
+      if (probeId !== siteProbeIdRef.current) return
+      setAutoUseMirror(false)
+      setActiveBangumiSite(true)
+      return
+    }
+
+    const originAvailable = await canReachOriginBangumi()
+    if (probeId !== siteProbeIdRef.current) return
+
+    const fallbackToMirror = !originAvailable
+    setAutoUseMirror(fallbackToMirror)
+    setActiveBangumiSite(fallbackToMirror)
+  }, [])
 
   // ─── Token Management ───────────────────────────────────────────────────────
 
@@ -899,7 +1009,7 @@ function App() {
   }
 
   const openBangumiSubject = (subjectId: number) => {
-    ;(window as any).electronAPI?.openExternal?.(`https://bgm.tv/subject/${subjectId}`)
+    ;(window as any).electronAPI?.openExternal?.(`${activeSite.webBase}/subject/${subjectId}`)
   }
 
   const openAuthPage = () => {
@@ -936,10 +1046,17 @@ function App() {
     notifCountRef.current = 0; setNotificationCount(0)
   }
 
-  const updateAppSettings = (settings: Partial<typeof appSettings>) => {
+  const updateAppSettings = (settings: Partial<AppSettings>) => {
     const next = { ...appSettings, ...settings }
     setAppSettings(next)
-    ;(window as any).electronAPI?.setAppSettings?.(settings).catch(() => {})
+    const setAppSettingsPromise = (window as any).electronAPI?.setAppSettings?.(settings)
+    if (setAppSettingsPromise && typeof setAppSettingsPromise.catch === 'function') {
+      setAppSettingsPromise.catch(() => {})
+    }
+
+    if (Object.prototype.hasOwnProperty.call(settings, 'useMirror')) {
+      void resolveBangumiSiteMode(next.useMirror)
+    }
   }
 
   // ─── Filter & sort ────────────────────────────────────────────────────────
@@ -975,16 +1092,38 @@ function App() {
     return 0
   })
 
+  const isUsingMirror = appSettings.useMirror || autoUseMirror
+  const mirrorHint = appSettings.useMirror
+    ? '已手动固定使用 bangumi.one 镜像地址'
+    : autoUseMirror
+      ? '检测到原站不可用，当前已自动切换镜像'
+      : '原站不可用时会自动切换到镜像地址'
+
   // ─── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (window.location.hash === '#settings') setCurrentPage('settings')
-    ;(window as any).electronAPI?.onAuthCallback?.(handleCallback)
-    checkLogin()
-    ;(window as any).electronAPI?.getAppSettings?.().then((s: any) => {
-      if (s) setAppSettings(s)
-    }).catch(() => {})
-  }, [])
+    let cancelled = false
+
+    const initApp = async () => {
+      if (window.location.hash === '#settings') setCurrentPage('settings')
+      ;(window as any).electronAPI?.onAuthCallback?.(handleCallback)
+
+      const getSettingsPromise = (window as any).electronAPI?.getAppSettings?.()
+      const storedSettings = getSettingsPromise && typeof getSettingsPromise.then === 'function'
+        ? await getSettingsPromise.catch(() => null)
+        : null
+      if (cancelled) return
+
+      const nextSettings: AppSettings = { ...DEFAULT_APP_SETTINGS, ...(storedSettings || {}) }
+      setAppSettings(nextSettings)
+      await resolveBangumiSiteMode(nextSettings.useMirror)
+      if (cancelled) return
+      await checkLogin()
+    }
+
+    void initApp()
+    return () => { cancelled = true }
+  }, [resolveBangumiSiteMode])
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null)
@@ -1043,7 +1182,7 @@ function App() {
           </div>
           <div className="settings-section">
             <h3>账号</h3>
-            <div className="settings-item" onClick={() => (window as any).electronAPI?.openExternal?.(`https://bgm.tv/${user?.username}`)}>
+            <div className="settings-item" onClick={() => (window as any).electronAPI?.openExternal?.(`${activeSite.webBase}/${user?.username}`)}>
               <span className="settings-icon">🌐</span>
               <span className="settings-item-text">访问 Bangumi 主页</span>
               <span className="settings-item-hint">↗</span>
@@ -1083,6 +1222,23 @@ function App() {
               </div>
               <div className={`toggle-switch ${appSettings.hideAfterClick ? 'on' : ''}`}>
                 <div className="toggle-knob" />
+              </div>
+            </div>
+            <div className="settings-item toggle-item" onClick={() => updateAppSettings({ useMirror: !appSettings.useMirror })}>
+              <span className="settings-icon">🌉</span>
+              <div className="settings-item-info">
+                <div className="settings-item-text">使用镜像地址</div>
+                <div className="settings-item-hint">{mirrorHint}</div>
+              </div>
+              <div className={`toggle-switch ${appSettings.useMirror ? 'on' : ''}`}>
+                <div className="toggle-knob" />
+              </div>
+            </div>
+            <div className="settings-item">
+              <span className="settings-icon">🔗</span>
+              <div className="settings-item-info">
+                <div className="settings-item-text">当前站点</div>
+                <div className="settings-item-hint">{isUsingMirror ? 'bangumi.one / api.bangumi.one' : 'bgm.tv / api.bgm.tv'}</div>
               </div>
             </div>
           </div>
