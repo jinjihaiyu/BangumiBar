@@ -404,6 +404,11 @@ interface AnimeCardProps {
   subjectType: number
 }
 
+const EP_TOOLTIP_WIDTH = 180
+const EP_TOOLTIP_HEIGHT = 92
+const EP_TOOLTIP_GAP = 10
+const EP_TOOLTIP_MARGIN = 8
+
 function AnimeCard({
   item, index, expandedCard, selectedEpisodes, selectedFilter,
   onToggleCard, onMarkEpisode, onBatchMark, onOpenSubject, onShowEpisodeMenu,
@@ -585,12 +590,28 @@ function AnimeCard({
                       }}
                       onMouseEnter={e => {
                         const rect = (e.target as HTMLElement).getBoundingClientRect()
-                        const win = window
-                        const winOffsetX = win.innerWidth - 360
-                        const winOffsetY = win.innerHeight - 540
+                        const viewportWidth = window.innerWidth
+                        const viewportHeight = window.innerHeight
+                        let x = rect.right + EP_TOOLTIP_GAP
+                        let y = rect.top - EP_TOOLTIP_GAP
+
+                        if (x + EP_TOOLTIP_WIDTH > viewportWidth - EP_TOOLTIP_MARGIN) {
+                          x = rect.left - EP_TOOLTIP_WIDTH - EP_TOOLTIP_GAP
+                        }
+                        if (x < EP_TOOLTIP_MARGIN) {
+                          x = EP_TOOLTIP_MARGIN
+                        }
+
+                        if (y + EP_TOOLTIP_HEIGHT > viewportHeight - EP_TOOLTIP_MARGIN) {
+                          y = rect.bottom - EP_TOOLTIP_HEIGHT
+                        }
+                        if (y < EP_TOOLTIP_MARGIN) {
+                          y = EP_TOOLTIP_MARGIN
+                        }
+
                         setHoveredEp({
-                          x: rect.left - winOffsetX + 24,
-                          y: rect.top - winOffsetY + 24,
+                          x,
+                          y,
                           ep: { epNum, epName, epAirdate, isWatched }
                         })
                       }}
@@ -1259,7 +1280,7 @@ function App() {
           subject={statusEditItem.subject}
           subjectType={statusEditItem.subjectType}
           currentType={statusEditItem.collectionItem?.type}
-          currentRating={statusEditItem.collectionItem?.rating || statusEditItem.subject?.rating?.score || 0}
+          currentRating={statusEditItem.collectionItem?.rating ?? 0}
           currentComment={statusEditItem.collectionItem?.comment || ''}
           onClose={() => setStatusEditItem(null)}
           onSubmit={handleStatusEdit}
