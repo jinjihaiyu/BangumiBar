@@ -18,6 +18,24 @@ declare global {
       getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>
       setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => Promise<void>
       platform: NodeJS.Platform
+      auth: {
+        onCallback: (callback: (data: any) => void) => void
+        onWindowReady: (callback: () => void) => void
+      }
+      desktop: {
+        openExternal: (url: string) => Promise<void>
+        hidePopover: () => Promise<void>
+        cancelHide: () => Promise<void>
+        scheduleHide: (delay: number) => Promise<void>
+        closeSettings: () => Promise<void>
+        getVersion: () => Promise<string>
+        showNotification: (title: string, body: string) => Promise<void>
+        platform: NodeJS.Platform
+      }
+      settings: {
+        get: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>
+        update: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => Promise<void>
+      }
     }
   }
 }

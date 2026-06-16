@@ -3,6 +3,14 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+type ErrorBoundaryProps = React.PropsWithChildren
+
+type ErrorBoundaryState = {
+  hasError: boolean
+  error: Error | null
+  info: React.ErrorInfo | null
+}
+
 window.addEventListener('error', (e) => {
   console.error('[GLOBAL ERROR]', e.message, 'at', e.filename, 'line', e.lineno, 'col', e.colno)
 })
@@ -10,15 +18,15 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('[UNHANDLED REJECTION]', e.reason)
 })
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null, info: null }
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, error }
   }
-  componentDidCatch(error, info) {
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
     this.setState({ error, info })
     console.error('[React ErrorBoundary caught]', error?.message, error?.stack, info?.componentStack)
     try {
@@ -41,14 +49,13 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-console.log('[main.tsx] Starting render...')
 try {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
   )
-  console.log('[main.tsx] render() called successfully')
-} catch(e) {
-  console.error('[main.tsx] render FAILED:', e.message, e.stack)
+} catch (e: unknown) {
+  const error = e instanceof Error ? e : new Error(String(e))
+  console.error('[main.tsx] render FAILED:', error.message, error.stack)
 }

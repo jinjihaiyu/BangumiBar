@@ -2,11 +2,18 @@
   "name": "bangumibar",
   "version": "1.0.0",
   "description": "Bangumi 追番管理菜单栏应用",
+  "author": "jinjihaiyu",
+  "license": "MIT",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite build && electron .",
+    "clean": "rm -rf dist release release-artifacts",
     "build": "vite build",
-    "build:app": "npm run build && electron-builder --dir"
+    "pack:dir": "electron-builder --dir",
+    "pack:mac": "electron-builder --mac",
+    "pack:win": "electron-builder --win",
+    "pack:linux": "electron-builder --linux",
+    "build:app": "npm run clean && npm run build && npm run pack:dir"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -30,7 +37,8 @@
     "appId": "com.bangumibar.app",
     "productName": "BangumiBar",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
@@ -38,13 +46,16 @@
     ],
     "mac": {
       "category": "public.app-category.entertainment",
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "build/icon.icns"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "linux": {
-      "target": "AppImage"
+      "target": "AppImage",
+      "icon": "build/icon.png"
     }
   }
 }

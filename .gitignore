@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 dist/
 release/
+release-artifacts/
 
 # OS files
 .DS_Store
@@ -32,9 +33,6 @@ logs/
 
 # electron-builder debug
 builder-debug.yml
-
-# Archive (unused historical files)
-archive/
 
 # Local Electron runtime data
 .electron-user-data/

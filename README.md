@@ -37,28 +37,45 @@
 
 ## 项目结构
 
-```
+```text
 BangumiBar/
-├── electron/               # Electron 主进程代码
-│   ├── main.js            # 主进程入口（窗口/托盘/IPC）
-│   ├── preload.js         # 预加载脚本（安全的 Bridge）
-│   ├── icon.png           # 菜单栏图标 (16x16)
-│   └── icon@2x.png       # 菜单栏图标 Retina (32x32)
-├── src/                    # React 前端源代码
-│   ├── main.tsx           # React 入口 + 错误边界
-│   ├── App.tsx           # 主应用组件（含所有子组件）
-│   ├── utils.ts          # 工具函数（日期/进度计算）
-│   ├── index.css         # 全局样式
-│   └── electron.d.ts     # Electron API 类型声明
-├── scripts/               # 构建脚本
-│   └── build.sh          # 打包脚本（清理+构建+打包）
-├── index.html             # HTML 入口
-├── package.json           # 项目配置
-├── vite.config.ts         # Vite 构建配置
-├── tsconfig.json          # TypeScript 配置
-├── .gitignore             # Git 忽略配置
-├── archive/               # 历史废弃文件（已不使用）
-│   └── (旧版 package-lock 文件等)
+├── electron/                   # Electron 壳层代码
+│   ├── main.js                 # 主进程入口
+│   ├── preload.js              # preload 统一入口
+│   ├── main/                   # 主进程控制器与平台适配
+│   │   ├── window-controller.js
+│   │   ├── tray-controller.js
+│   │   ├── protocol-controller.js
+│   │   ├── ipc.js
+│   │   └── platform/
+│   ├── preload/                # 桥接能力拆分
+│   │   ├── bridge.js
+│   │   ├── auth.js
+│   │   ├── desktop.js
+│   │   └── settings.js
+│   ├── icon.png
+│   └── icon@2x.png
+├── src/                        # React 渲染层
+│   ├── app/
+│   │   ├── hooks/              # 状态与副作用组织
+│   │   └── services/           # API / 设置 / 缓存服务
+│   ├── components/             # 展示组件
+│   ├── pages/                  # 页面层
+│   ├── platform/               # renderer 侧桌面能力入口
+│   ├── App.tsx                 # 顶层编排
+│   ├── main.tsx                # React 入口 + 错误边界
+│   ├── utils.ts                # 通用工具函数
+│   ├── index.css
+│   └── electron.d.ts
+├── docs/                       # 重构、验证与发布收尾文档
+├── scripts/
+│   ├── build.sh                # 构建与打包脚本
+│   └── release.sh              # 将 `.app` 再压缩为发布包
+├── index.html
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── .gitignore
 └── README.md
 ```
 
@@ -104,9 +121,36 @@ npm run dev
 
 ### 项目调试
 
-- **前端日志**：`src/main.tsx` 中有全局错误捕获和 `console.log` 输出
+- **前端日志**：`src/main.tsx` 中保留了全局错误捕获，便于定位渲染异常
 - **主进程日志**：运行时会写入 `~/Library/Application Support/BangumiBar/bangumibar.log`
 - **React DevTools**：可在 `BrowserWindow` 中打开 DevTools 进行前端调试
+
+## 安全配置待办
+
+当前为了保证本地 `preload` 桥接和现有页面加载链路稳定，Electron 窗口配置里仍保留了少量偏宽松设置。它们不会阻塞当前开发和使用，但在后续发布前建议逐步收口：
+
+- `webSecurity: false`
+  - 当前位置：`electron/main/window-controller.js`
+  - 待办：确认当前页面实际依赖后，恢复为默认安全值，避免继续触发 Electron 的安全告警
+- `sandbox: false`
+  - 当前位置：`electron/main/window-controller.js`
+  - 原因：当前拆分后的 `preload.js` 仍依赖 CommonJS `require('./preload/bridge')`
+  - 待办：后续可以把 preload 构建链路独立出来，改成不依赖运行时 `require`，再评估恢复 sandbox
+- Content Security Policy
+  - 现状：当前页面没有完整收口 CSP，因此仍会看到相关安全提示
+  - 待办：为 `index.html` 和渲染资源补明确的 CSP，收紧脚本与资源来源
+
+建议顺序：先收口 `preload` 构建方式，再恢复 `sandbox`；随后处理 `webSecurity` 和 CSP，这样对现有功能影响最小。
+
+## 发布元信息待办
+
+- `package.json` 已补 `author` 与 `license`，可消除 `electron-builder` 的作者缺失提示
+- 当前发布图标资源已接入 `build/` 目录：
+  - macOS：`build/icon.icns`
+  - Windows：`build/icon.ico`
+  - Linux：`build/icon.png`
+- `electron/icon.png` 与 `electron/icon@2x.png` 仍保留为托盘图标资源
+- 若后续想替换发布图标，建议继续提供一张高分辨率正方形源图，再重新生成 `build/` 下的标准图标文件
 
 ### 构建打包
 
@@ -125,17 +169,30 @@ npm run dev
 ./scripts/build.sh --clean-only
 ```
 
+如需对已生成的 `.app` 做额外压缩分发，可使用：
+
+```bash
+./scripts/release.sh
+```
+
+脚本会自动在 `release/` 中查找 `BangumiBar.app`，并将压缩产物输出到 `release-artifacts/`。
+
 #### 方式二：手动命令
 
 ```bash
-# 1. 清理
-rm -rf dist/ release/
+# 1. 清理构建产物
+npm run clean
 
 # 2. 构建前端
 npm run build
 
-# 3. 打包（--dir 生成未压缩目录，不加生成 dmg）
-npm run build:app
+# 3. 打包未压缩目录
+npm run pack:dir
+
+# 或按平台打包
+npm run pack:mac
+npm run pack:win
+npm run pack:linux
 ```
 
 ### 打包产物
@@ -175,6 +232,32 @@ open release/mac-arm64/BangumiBar.app
 ---
 
 ## 常见问题
+
+### Q: 未签名的 macOS 应用打不开，提示“无法验证开发者”怎么办？
+
+如果当前分发的是未签名版本，macOS 可能会默认拦截。这不一定代表应用有问题，通常按下面步骤手动放行即可：
+
+```text
+1. 先双击一次应用，让系统弹出拦截提示
+2. 打开「系统设置」->「隐私与安全性」
+3. 在页面下方找到关于 BangumiBar 的拦截提示
+4. 点击「仍要打开」或同类放行按钮
+5. 再次启动应用
+```
+
+如果系统没有出现放行按钮，也可以尝试：
+
+```text
+1. 在 Finder 中找到 BangumiBar.app
+2. 右键应用，选择「打开」
+3. 在弹窗中再次点击「打开」
+```
+
+说明：
+
+- 这种情况常见于未签名的测试版应用
+- 对熟悉 macOS 的试用用户通常问题不大
+- 如果后续要面向更广泛用户分发，建议再补签名与公证流程
 
 ### Q: 应用无法显示图标？
 

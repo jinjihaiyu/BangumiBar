@@ -49,19 +49,7 @@ fi
 
 echo ""
 echo "[2/6] 清理旧的构建产物..."
-
-# 清理 dist 目录
-if [ -d "dist" ]; then
-  echo "  删除 dist/ ..."
-  rm -rf dist
-fi
-
-# 清理 release 目录
-if [ -d "release" ]; then
-  echo "  删除 release/ ..."
-  rm -rf release
-fi
-
+npm run clean
 echo "  构建产物已清理 ✓"
 
 if [ "$CLEAN_ONLY" = true ]; then
@@ -81,18 +69,18 @@ echo "[4/6] 打包 Electron 应用..."
 if [ -n "$BUILD_TARGET" ]; then
   case $BUILD_TARGET in
     mac)
-      npx electron-builder --mac
+      npm run pack:mac
       ;;
     win)
-      npx electron-builder --win
+      npm run pack:win
       ;;
     linux)
-      npx electron-builder --linux
+      npm run pack:linux
       ;;
   esac
 else
   echo "  未指定平台，使用默认配置打包..."
-  npx electron-builder --dir
+  npm run pack:dir
 fi
 echo "  打包完成 ✓"
 
