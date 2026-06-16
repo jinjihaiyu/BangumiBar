@@ -35,3 +35,7 @@ builder-debug.yml
 
 # Archive (unused historical files)
 archive/
+
+# Local Electron runtime data
+.electron-user-data/
+.tmp-home/

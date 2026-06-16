@@ -5,11 +5,28 @@ const fs = require('fs');
 let LOG_FILE = null;
 let store = null;
 
+if (process.env.ELECTRON_DISABLE_SANDBOX === '1') {
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-gpu');
+  app.disableHardwareAcceleration();
+}
+
+if (process.env.BANGUMIBAR_LOCAL_USER_DATA === '1') {
+  app.setPath('userData', path.join(process.cwd(), '.electron-user-data'));
+}
+
 function log(...args) {
   const timestamp = new Date().toISOString();
   const message = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
   const logLine = `[${timestamp}] ${message}\n`;
-  if (LOG_FILE) fs.appendFileSync(LOG_FILE, logLine);
+  if (LOG_FILE) {
+    try {
+      fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+      fs.appendFileSync(LOG_FILE, logLine);
+    } catch {
+      LOG_FILE = null;
+    }
+  }
   console.log(...args);
 }
 

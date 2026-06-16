@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './index.css'
-import { isAired, calcUnwatchedCount, getNextEpisode, formatAirDate, formatTime } from './utils'
+import { isAired, calcUnwatchedCount, filterMainStoryEpisodes, getEpisodeNumber, getNextEpisode, formatAirDate, formatTime } from './utils'
 
 const BGM_CLIENT_ID = 'bgm601969ef220ea48ae'
 const BGM_CLIENT_SECRET = 'adcf8bf04974ddcb88e5425e194da65c'
@@ -425,11 +425,6 @@ function AnimeCard({
   const rating = subj?.rating?.score || item.subject?.rating?.score || 0
 
   const effectiveTotal = totalEps > 0 ? totalEps : eps.length
-  let airedEps = effectiveTotal
-  if (isAiredSubject && !isEnded && totalEps > 0) {
-    const weeksSinceAir = Math.floor((Date.now() - new Date(airDate).getTime()) / (7 * 24 * 60 * 60 * 1000))
-    airedEps = Math.min(Math.max(weeksSinceAir + 1, watchedCount), effectiveTotal)
-  }
   const displayedUnwatched = unwatchedCounts[subjectId] || 0
 
   const nextEp = eps.length > 0 ? getNextEpisode(eps) : null
@@ -454,22 +449,23 @@ function AnimeCard({
     if (!token) return
     const memCached = episodeCache.get(subjectId)
     if (memCached && Date.now() - memCached.time < CACHE_TTL_MS) {
-      const filtered = memCached.data
+      const filtered = filterMainStoryEpisodes(memCached.data)
       if (loadId === epsLoadId.current) { setEps(filtered); onUnwatchedUpdate(subjectId, calcUnwatchedCount(filtered)) }
       return
     }
     const diskCached = persistentCache.getEpisodeCache(subjectId)
     if (diskCached) {
-      episodeCache.set(subjectId, { data: diskCached, time: Date.now() })
-      const filtered = diskCached
+      const filtered = filterMainStoryEpisodes(diskCached)
+      episodeCache.set(subjectId, { data: filtered, time: Date.now() })
+      persistentCache.setEpisodeCache(subjectId, filtered)
       if (loadId === epsLoadId.current) { setEps(filtered); onUnwatchedUpdate(subjectId, calcUnwatchedCount(filtered)) }
       return
     }
     if (loadId === epsLoadId.current) setLoadingEps(true)
     api.getEpisodes(token, subjectId).then(data => {
-        episodeCache.set(subjectId, { data, time: Date.now() })
-        persistentCache.setEpisodeCache(subjectId, data)
-        const filtered = data
+        const filtered = filterMainStoryEpisodes(data)
+        episodeCache.set(subjectId, { data: filtered, time: Date.now() })
+        persistentCache.setEpisodeCache(subjectId, filtered)
       if (loadId === epsLoadId.current) { setEps(filtered); onUnwatchedUpdate(subjectId, calcUnwatchedCount(filtered)); setLoadingEps(false) }
     }).catch(() => { if (loadId === epsLoadId.current) setLoadingEps(false) })
   }, [subjectId])
@@ -488,7 +484,7 @@ function AnimeCard({
       // Check for last episode + rating prompt
       const total = effectiveTotal > 0 ? effectiveTotal : prevEps.length
       const targetEp = updatedEps.find((ep: any) => (ep.episode?.id || ep.id) === episodeId)
-      const epNum = targetEp?.episode?.sort || targetEp?.episode?.ep || targetEp?.sort || targetEp?.ep || 0
+      const epNum = getEpisodeNumber(targetEp)
       const isLastEp = total > 0 && epNum >= total && newType === 2
       const showEnded = subj?.endDate && new Date(subj.endDate) < new Date()
       if (isLastEp && isEnded && showEnded && subj) {
@@ -559,7 +555,7 @@ function AnimeCard({
               ) : eps.length > 0 ? (
                 eps.map(ep => {
                   const epId = ep.episode?.id || ep.id
-                  const epNum = ep.episode?.sort || ep.episode?.ep || ep.sort || ep.ep
+                  const epNum = getEpisodeNumber(ep)
                   const epName = ep.episode?.nameCn || ep.episode?.name || ''
                   const epAirdate = ep.episode?.airdate || ''
                   const isWatched = ep.type === 2
@@ -788,7 +784,7 @@ function App() {
       const name = (colItem?.subject?.nameCn || colItem?.subject?.name || '番剧')
       setNotifications(prev => [{
         id: Date.now(),
-        type: 'progress',
+        type: 'progress' as const,
         text: `第${colItem?.ep_status ? colItem.ep_status + 1 : '?'}集已标记为看过`,
         subjectName: name,
         subjectId,
@@ -813,7 +809,7 @@ function App() {
       const name = (colItem?.subject?.nameCn || colItem?.subject?.name || '番剧')
       setNotifications(prev => [{
         id: Date.now(),
-        type: 'progress',
+        type: 'progress' as const,
         text: `批量标记${episodeIds.length}集为看过`,
         subjectName: name,
         subjectId,
@@ -832,7 +828,7 @@ function App() {
     const name = pendingRating.nameCn || pendingRating.name || '番剧'
     setNotifications(prev => [{
       id: Date.now(),
-      type: 'rating',
+      type: 'rating' as const,
       text: `完结打分 ${rating.toFixed(1)}分${comment ? ` · ${comment}` : ''}`,
       subjectName: name,
       subjectId: pendingRating.id,

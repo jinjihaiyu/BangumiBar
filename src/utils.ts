@@ -6,12 +6,26 @@ export function isAired(airdateStr: string | undefined): boolean {
   return aired < today
 }
 
+export function getEpisodeNumber(ep: any): number {
+  const rawNumber = ep?.episode?.sort ?? ep?.episode?.ep ?? ep?.sort ?? ep?.ep
+  return Number(rawNumber)
+}
+
+export function isMainStoryEpisode(ep: any): boolean {
+  const epNumber = getEpisodeNumber(ep)
+  return Number.isInteger(epNumber) && epNumber > 0
+}
+
+export function filterMainStoryEpisodes(eps: any[]): any[] {
+  return eps.filter(isMainStoryEpisode)
+}
+
 export function calcUnwatchedCount(eps: any[]): number {
-  return eps.filter(ep => isAired(ep.episode?.airdate) && ep.type !== 2).length
+  return eps.filter(ep => isMainStoryEpisode(ep) && isAired(ep.episode?.airdate) && ep.type !== 2).length
 }
 
 export function getNextEpisode(eps: any[]): any | null {
-  return eps.find(ep => !isAired(ep.episode?.airdate) && ep.type !== 2) || null
+  return eps.find(ep => isMainStoryEpisode(ep) && !isAired(ep.episode?.airdate) && ep.type !== 2) || null
 }
 
 export function formatAirDate(dateStr: string): string {
