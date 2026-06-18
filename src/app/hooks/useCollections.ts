@@ -178,57 +178,6 @@ export function useCollections({
     }
   }, [collections, getSubjectId, getValidToken, onToast])
 
-  const batchMarkEpisodes = useCallback(async (subjectId: number, episodeIds: number[], newType: number, clearSelectedEpisodes: () => void) => {
-    const token = await getValidToken()
-    if (!token) return
-
-    const typeNames: Record<number, string> = { 0: '取消', 2: '看过', 3: '看不了' }
-    clearSelectedEpisodes()
-    onToast(`已批量设为 ${typeNames[newType]}`)
-
-    if (newType === 2) {
-      notifCountRef.current += episodeIds.length
-      setNotificationCount(notifCountRef.current)
-
-      const colItem = collections.find(item => getSubjectId(item) === subjectId)
-      const name = colItem?.subject?.nameCn || colItem?.subject?.name || '番剧'
-
-      setNotifications(prev => [buildNotification({
-        id: Date.now(),
-        type: 'progress',
-        text: `批量标记${episodeIds.length}集为看过`,
-        subjectName: name,
-        subjectId,
-        time: new Date()
-      }), ...prev].slice(0, 50))
-
-      showDesktopNotification('BangumiBar', `《${name}》批量标记${episodeIds.length}集为看过`)
-    }
-
-    try {
-      await Promise.all(episodeIds.map(id => api.updateEpisodeProgress(token, id, newType)))
-    } catch {
-      onToast('批量操作失败')
-    }
-  }, [collections, getSubjectId, getValidToken, onToast])
-
-  const handleRatingSubmit = useCallback(async (pendingRating: any, rating: number, comment: string) => {
-    const token = await getValidToken()
-    if (!token || !pendingRating) return
-
-    await api.updateCollection(token, pendingRating.id, { rating, comment })
-    const name = pendingRating.nameCn || pendingRating.name || '番剧'
-    setNotifications(prev => [buildNotification({
-      id: Date.now(),
-      type: 'rating',
-      text: `完结打分 ${rating.toFixed(1)}分${comment ? ` · ${comment}` : ''}`,
-      subjectName: name,
-      subjectId: pendingRating.id,
-      time: new Date()
-    }), ...prev].slice(0, 50))
-    onToast('评分已提交')
-  }, [getValidToken, onToast])
-
   const handleStatusEdit = useCallback(async (statusEditItem: any, data: { type?: number; rating?: number; comment?: string }) => {
     const token = await getValidToken()
     if (!token || !statusEditItem || !username) return false
@@ -302,8 +251,6 @@ export function useCollections({
     loadSearchCorpus,
     resetCollectionState,
     markEpisode,
-    batchMarkEpisodes,
-    handleRatingSubmit,
     handleStatusEdit,
     handleRefreshCollections,
     handleUnwatchedUpdate,

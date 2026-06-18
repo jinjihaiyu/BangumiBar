@@ -111,19 +111,6 @@ html, body {
 
 .header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
-.notif-badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 18px; height: 18px;
-  padding: 0 4px;
-  background: var(--orange);
-  color: #000;
-  border-radius: 9px;
-  font-size: 10px; font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow: 0 0 6px rgba(255, 159, 10, 0.4);
-  animation: badge-pulse 2s ease-in-out infinite;
-}
-
 .notif-badge-btn {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px;
@@ -341,8 +328,6 @@ html, body {
   background: rgba(255,160,0,0.1); padding: 1px 5px;
   border-radius: 4px;
 }
-.rating-star-icon { flex-shrink: 0; }
-
 .anime-meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .anime-date { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.01em; }
@@ -400,34 +385,6 @@ html, body {
 /* ─── Episode Wrapper ──────────────────────────────────────────────────── */
 .episode-grid-wrapper { position: relative; }
 
-/* Batch Action Bar */
-.batch-action-bar {
-  display: flex; align-items: center; gap: 5px;
-  padding: 7px 8px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 7px; margin-bottom: 7px;
-  border: 0.5px solid var(--border-subtle);
-  flex-wrap: wrap;
-}
-
-.batch-count { font-size: 11px; color: var(--text-secondary); margin-right: auto; }
-
-.batch-btn {
-  padding: 4px 10px; border: none; border-radius: 5px;
-  font-size: 11px; font-weight: 500; cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
-  letter-spacing: -0.01em;
-}
-.batch-btn:active { transform: scale(0.95); }
-.batch-btn.watched { background: var(--green); color: #000; }
-.batch-btn.watched:hover { opacity: 0.85; }
-.batch-btn.unwatched { background: rgba(255,255,255,0.1); color: var(--text-primary); }
-.batch-btn.unwatched:hover { background: rgba(255,255,255,0.15); }
-.batch-btn.cant-continue { background: var(--orange); color: #000; }
-.batch-btn.cant-continue:hover { opacity: 0.85; }
-.batch-btn.cancel { background: transparent; color: var(--text-muted); border: 0.5px solid var(--border-subtle); padding: 4px 8px; }
-.batch-btn.cancel:hover { color: var(--text-primary); border-color: var(--border-active); }
-
 /* Episode Grid */
 .episode-grid {
   display: flex; flex-wrap: wrap; gap: 4px;
@@ -453,9 +410,8 @@ html, body {
 .episode-dot.watched:hover { opacity: 0.8; }
 .episode-dot.not-updated { background: transparent; color: rgba(255,255,255,0.25); border: 1px dashed rgba(255,255,255,0.15); cursor: default; }
 .episode-dot.not-updated:hover { cursor: default; }
-.episode-dot:not(.watched):not(.not-updated):not(.selected) { background: transparent; color: var(--green); border: 1px solid rgba(48, 209, 88, 0.35); cursor: pointer; }
-.episode-dot:not(.watched):not(.not-updated):not(.selected):hover { background: rgba(48, 209, 88, 0.15); }
-.episode-dot.selected { box-shadow: 0 0 0 2px var(--bg-card-active), 0 0 0 3.5px rgba(255,255,255,0.15); }
+.episode-dot:not(.watched):not(.not-updated) { background: transparent; color: var(--green); border: 1px solid rgba(48, 209, 88, 0.35); cursor: pointer; }
+.episode-dot:not(.watched):not(.not-updated):hover { background: rgba(48, 209, 88, 0.15); }
 
 /* ─── Episode Hover Tooltip ─────────────────────────────────────────────── */
 .ep-tooltip {
@@ -521,7 +477,6 @@ html, body {
 .menu-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .menu-dot.watched { background: var(--green); }
 .menu-dot.unwatched { background: rgba(255,255,255,0.2); border: 0.5px solid rgba(255,255,255,0.2); }
-.menu-dot.cant-continue { background: var(--orange); }
 
 /* ─── Toast ────────────────────────────────────────────────────────────── */
 .toast {
@@ -687,64 +642,6 @@ html, body {
 .modal-buttons button.primary { background: var(--accent); color: #fff; }
 .modal-buttons button.primary:hover { background: var(--accent-hover); }
 
-/* ─── Rating Modal ─────────────────────────────────────────────────────── */
-.rating-modal {
-  background: var(--bg-modal); border: 0.5px solid var(--border-active);
-  border-radius: 14px; width: 300px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.04);
-  overflow: hidden;
-  animation: rating-modal-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-@keyframes rating-modal-in {
-  from { opacity: 0; transform: scale(0.92) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.rating-modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 12px;
-  border-bottom: 0.5px solid var(--border-subtle);
-}
-.rating-modal-title {
-  font-size: 15px; font-weight: 600; color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-.rating-modal-close {
-  width: 24px; height: 24px; border: none; background: transparent;
-  color: var(--text-muted); cursor: pointer; border-radius: 5px;
-  font-size: 12px; display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s;
-}
-.rating-modal-close:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
-
-.rating-modal-subject {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 0.5px solid var(--border-subtle);
-}
-.rating-modal-poster {
-  width: 36px; height: 48px; border-radius: 5px;
-  object-fit: cover; flex-shrink: 0; background: rgba(255,255,255,0.04);
-}
-.rating-modal-info { flex: 1; min-width: 0; }
-.rating-modal-name {
-  font-size: 12.5px; font-weight: 600; color: var(--text-primary);
-  letter-spacing: -0.01em;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; line-height: 1.3;
-}
-.rating-modal-meta { font-size: 10.5px; color: var(--text-muted); margin-top: 3px; }
-
-.rating-modal-section { padding: 12px 16px; }
-.rating-modal-section + .rating-modal-section { border-top: 0.5px solid var(--border-subtle); }
-
-.rating-modal-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
-.rating-modal-label-hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
-
-.rating-modal-stars { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-
-.rating-modal-hint { font-size: 10px; color: var(--text-muted); }
-
 /* Star Rating Component */
 .star-rating { display: flex; align-items: center; }
 
@@ -765,48 +662,6 @@ html, body {
   margin-left: 6px; font-size: 13px; font-weight: 700;
   color: var(--orange); letter-spacing: -0.02em;
 }
-
-/* Rating comment */
-.rating-modal-comment {
-  width: 100%; padding: 8px 10px;
-  background: rgba(255,255,255,0.05); border: 0.5px solid var(--border-subtle);
-  border-radius: 8px; color: var(--text-primary); font-size: 12.5px;
-  font-family: var(--font); resize: none; outline: none;
-  transition: border-color 0.15s; line-height: 1.5;
-  box-sizing: border-box;
-}
-.rating-modal-comment:focus { border-color: rgba(255,255,255,0.2); }
-.rating-modal-comment::placeholder { color: var(--text-muted); }
-
-.rating-modal-char-count { font-size: 10px; color: var(--text-muted); text-align: right; margin-top: 4px; }
-
-.rating-modal-error {
-  margin: 0 16px 8px;
-  padding: 7px 10px;
-  background: var(--red-dim); color: var(--red);
-  border-radius: 6px; font-size: 11px;
-  border: 0.5px solid rgba(255, 69, 58, 0.2);
-}
-
-.rating-modal-actions {
-  display: flex; gap: 8px; padding: 12px 16px 16px;
-}
-.rating-modal-skip {
-  flex: 1; padding: 9px; border: 0.5px solid var(--border-subtle);
-  border-radius: 8px; background: transparent; color: var(--text-secondary);
-  font-size: 13px; font-weight: 500; cursor: pointer;
-  transition: all 0.15s;
-}
-.rating-modal-skip:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); border-color: var(--border-active); }
-.rating-modal-submit {
-  flex: 2; padding: 9px; border: none; border-radius: 8px;
-  background: var(--accent); color: #fff;
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s; letter-spacing: -0.01em;
-}
-.rating-modal-submit:hover { background: var(--accent-hover); box-shadow: 0 2px 12px rgba(10, 132, 255, 0.3); }
-.rating-modal-submit:active { transform: scale(0.98); }
-.rating-modal-submit:disabled { background: rgba(255,255,255,0.1); color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
 
 /* ─── Status Edit Modal ─────────────────────────────────────────────────── */
 .status-modal {

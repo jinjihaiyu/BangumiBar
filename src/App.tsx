@@ -20,11 +20,9 @@ const getSubjectId = (item: any): number => item.subjectId || item.subject?.id |
 function App() {
   const [currentPage, setCurrentPage] = useState<'main' | 'settings'>('main')
   const [expandedCard, setExpandedCard] = useState<number | null>(null)
-  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subjectId: number; episodeId: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [pendingRating, setPendingRating] = useState<any>(null)
   const [statusEditItem, setStatusEditItem] = useState<{ subject: any; subjectType: number; collectionItem: any } | null>(null)
   const [hoveredEp, setHoveredEp] = useState<{ x: number; y: number; ep: any } | null>(null)
   const onAuthenticatedRef = useRef<(payload: { token: string; username: string; force: boolean }) => Promise<void>>(async () => {})
@@ -79,8 +77,6 @@ function App() {
     loadSearchCorpus,
     resetCollectionState,
     markEpisode,
-    batchMarkEpisodes,
-    handleRatingSubmit,
     handleStatusEdit,
     handleRefreshCollections,
     handleUnwatchedUpdate,
@@ -111,17 +107,8 @@ function App() {
   const logout = useCallback(() => {
     authLogout()
     resetCollectionState()
-    setPendingRating(null)
     setStatusEditItem(null)
   }, [authLogout, resetCollectionState])
-
-  const onBatchMark = useCallback((subjectId: number, episodeIds: number[], newType: number) => {
-    void batchMarkEpisodes(subjectId, episodeIds, newType, () => setSelectedEpisodes(new Set()))
-  }, [batchMarkEpisodes])
-
-  const onRatingSubmit = useCallback((rating: number, comment: string) => {
-    return handleRatingSubmit(pendingRating, rating, comment)
-  }, [handleRatingSubmit, pendingRating])
 
   const onStatusEditSubmit = useCallback(async (data: { type?: number; rating?: number; comment?: string }) => {
     await handleStatusEdit(statusEditItem, data)
@@ -134,15 +121,10 @@ function App() {
     setContextMenu({ x: rect.left, y: rect.bottom + 4, subjectId, episodeId })
   }
 
-  const getSelectedEpisodeIds = (_subjectId: number): number[] => {
-    return [...selectedEpisodes]
-  }
-
   const toggleCard = (e: React.MouseEvent, item: any) => {
     e.stopPropagation()
     const subjectId = getSubjectId(item)
     setExpandedCard(prev => prev === subjectId ? null : subjectId)
-    setSelectedEpisodes(new Set())
   }
 
   const openBangumiSubject = (subjectId: number) => {
@@ -260,11 +242,9 @@ function App() {
       isLoading={isLoading}
       error={error}
       expandedCard={expandedCard}
-      selectedEpisodes={selectedEpisodes}
       unwatchedCounts={unwatchedCounts}
       contextMenu={contextMenu}
       hoveredEp={hoveredEp}
-      pendingRating={pendingRating}
       statusEditItem={statusEditItem}
       toast={toast}
       onOpenSettings={() => setCurrentPage('settings')}
@@ -276,19 +256,13 @@ function App() {
       onSelectSubjectType={setSelectedSubjectType}
       onToggleCard={toggleCard}
       onMarkEpisode={markEpisode}
-      onBatchMark={onBatchMark}
       onOpenSubject={openBangumiSubject}
       onShowEpisodeMenu={showEpisodeMenu}
-      getSelectedEpisodeIds={getSelectedEpisodeIds}
-      setSelectedEpisodes={setSelectedEpisodes}
       setHoveredEp={setHoveredEp}
-      onRequestRating={setPendingRating}
       onUnwatchedUpdate={handleUnwatchedUpdate}
       onEditStatus={(subject, st, colItem) => setStatusEditItem({ subject, subjectType: st, collectionItem: colItem })}
       clearNotifications={clearNotifications}
       onCloseContextMenu={() => setContextMenu(null)}
-      onCloseRating={() => setPendingRating(null)}
-      onSubmitRating={onRatingSubmit}
       onCloseStatusEdit={() => setStatusEditItem(null)}
       onSubmitStatusEdit={onStatusEditSubmit}
     />

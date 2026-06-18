@@ -9,18 +9,13 @@ export interface AnimeCardProps {
   item: any
   index: number
   expandedCard: number | null
-  selectedEpisodes: Set<number>
   isLoggedIn: boolean
   selectedFilter: number
   onToggleCard: (event: MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
-  onBatchMark: (subjectId: number, episodeIds: number[], newType: number) => void
   onOpenSubject: (subjectId: number) => void
   onShowEpisodeMenu: (event: MouseEvent, subjectId: number, episodeId: number) => void
-  getSelectedEpisodeIds: (subjectId: number) => number[]
-  setSelectedEpisodes: Dispatch<SetStateAction<Set<number>>>
   setHoveredEp: Dispatch<SetStateAction<HoveredEpisode>>
-  onRequestRating: (subject: any) => void
   onUnwatchedUpdate: (subjectId: number, count: number) => void
   unwatchedCounts: Record<number, number>
   onEditStatus: (subject: any, subjectType: number, item: any) => void
@@ -40,17 +35,12 @@ export function AnimeCard({
   item,
   index: _index,
   expandedCard,
-  selectedEpisodes,
   selectedFilter,
   onToggleCard,
   onMarkEpisode,
-  onBatchMark,
   onOpenSubject,
   onShowEpisodeMenu,
-  getSelectedEpisodeIds,
-  setSelectedEpisodes,
   setHoveredEp,
-  onRequestRating,
   onUnwatchedUpdate,
   unwatchedCounts,
   onEditStatus,
@@ -146,6 +136,10 @@ export function AnimeCard({
 
   // 卡片内部先做乐观更新，保持分集点击后的即时反馈。
   const handleMark = (episodeId: number, newType: number) => {
+    let shouldOpenStatusEdit = false
+    let subjectForEdit: any = null
+    let collectionItemForEdit: any = null
+
     setEpisodes(prevEpisodes => {
       const updatedEpisodes = prevEpisodes.map(episode => {
         const id = episode.episode?.id || episode.id
@@ -162,13 +156,21 @@ export function AnimeCard({
       const targetEpisode = updatedEpisodes.find((episode: any) => (episode.episode?.id || episode.id) === episodeId)
       const episodeNumber = getEpisodeNumber(targetEpisode)
       const isLastEpisode = total > 0 && episodeNumber >= total && newType === 2
-      const showEnded = subject?.endDate && new Date(subject.endDate) < new Date()
-      if (isLastEpisode && isEnded && showEnded && subject) {
-        onRequestRating(subject)
+      const allMainEpisodesCompleted = updatedEpisodes.length > 0 && updatedEpisodes.every((episode: any) => episode.type === 2)
+      const hasUpcomingMainEpisode = getNextEpisode(updatedEpisodes) !== null
+
+      if (isLastEpisode && allMainEpisodesCompleted && !hasUpcomingMainEpisode) {
+        shouldOpenStatusEdit = true
+        subjectForEdit = subject || item.subject || item
+        collectionItemForEdit = { ...item, type: 2 }
       }
 
       return updatedEpisodes
     })
+
+    if (shouldOpenStatusEdit && subjectForEdit) {
+      onEditStatus(subjectForEdit, subjectType, collectionItemForEdit)
+    }
   }
 
   return (
@@ -229,15 +231,6 @@ export function AnimeCard({
         )}
         {isAnime && selectedFilter === 3 && expandedCard === subjectId && (
           <div className="episode-grid-wrapper" onClick={event => event.stopPropagation()}>
-            {selectedEpisodes.size > 0 && (
-              <div className="batch-action-bar">
-                <span className="batch-count">已选{selectedEpisodes.size}个</span>
-                <button className="batch-btn watched" onClick={() => onBatchMark(subjectId, getSelectedEpisodeIds(subjectId), 2)}>看过</button>
-                <button className="batch-btn unwatched" onClick={() => onBatchMark(subjectId, getSelectedEpisodeIds(subjectId), 0)}>取消</button>
-                <button className="batch-btn cant-continue" onClick={() => onBatchMark(subjectId, getSelectedEpisodeIds(subjectId), 3)}>看不了</button>
-                <button className="batch-btn cancel" onClick={() => setSelectedEpisodes(new Set())}>✕</button>
-              </div>
-            )}
             <div className="episode-grid">
               {loadingEpisodes ? (
                 <div className="loading-small">加载中...</div>
@@ -249,25 +242,15 @@ export function AnimeCard({
                   const episodeAirdate = episode.episode?.airdate || ''
                   const isWatched = episode.type === 2
                   const aired = isAired(episodeAirdate)
-                  const isSelected = selectedEpisodes.has(episodeId)
 
                   return (
                     <div key={episodeId}
-                      className={`episode-dot ${isWatched ? 'watched' : ''} ${!isWatched && !aired ? 'not-updated' : ''} ${isSelected ? 'selected' : ''}`}
+                      className={`episode-dot ${isWatched ? 'watched' : ''} ${!isWatched && !aired ? 'not-updated' : ''}`}
                       onClick={event => {
                         event.stopPropagation()
-                        if (event.shiftKey || event.ctrlKey || event.metaKey) {
-                          setSelectedEpisodes(prev => {
-                            const next = new Set(prev)
-                            if (next.has(episodeId)) next.delete(episodeId)
-                            else next.add(episodeId)
-                            return next
-                          })
-                        } else {
-                          const nextType = isWatched ? 0 : 2
-                          handleMark(episodeId, nextType)
-                          onMarkEpisode(subjectId, episodeId, nextType)
-                        }
+                        const nextType = isWatched ? 0 : 2
+                        handleMark(episodeId, nextType)
+                        onMarkEpisode(subjectId, episodeId, nextType)
                       }}
                       onContextMenu={event => {
                         event.preventDefault()

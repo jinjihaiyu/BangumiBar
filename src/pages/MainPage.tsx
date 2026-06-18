@@ -1,5 +1,4 @@
 import { AnimeCard } from '../components/AnimeCard'
-import { RatingModal } from '../components/RatingModal'
 import { StatusEditModal } from '../components/StatusEditModal'
 import { formatTime } from '../utils'
 
@@ -25,11 +24,9 @@ type MainPageProps = {
   isLoading: boolean
   error: string | null
   expandedCard: number | null
-  selectedEpisodes: Set<number>
   unwatchedCounts: Record<number, number>
   contextMenu: { x: number; y: number; subjectId: number; episodeId: number } | null
   hoveredEp: { x: number; y: number; ep: any } | null
-  pendingRating: any
   statusEditItem: { subject: any; subjectType: number; collectionItem: any } | null
   toast: string | null
   onOpenSettings: () => void
@@ -41,19 +38,13 @@ type MainPageProps = {
   onSelectSubjectType: (value: number) => void
   onToggleCard: (event: React.MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
-  onBatchMark: (subjectId: number, episodeIds: number[], newType: number) => void
   onOpenSubject: (subjectId: number) => void
   onShowEpisodeMenu: (event: React.MouseEvent, subjectId: number, episodeId: number) => void
-  getSelectedEpisodeIds: (subjectId: number) => number[]
-  setSelectedEpisodes: React.Dispatch<React.SetStateAction<Set<number>>>
   setHoveredEp: React.Dispatch<React.SetStateAction<{ x: number; y: number; ep: any } | null>>
-  onRequestRating: (subject: any) => void
   onUnwatchedUpdate: (subjectId: number, count: number) => void
   onEditStatus: (subject: any, subjectType: number, collectionItem: any) => void
   clearNotifications: () => void
   onCloseContextMenu: () => void
-  onCloseRating: () => void
-  onSubmitRating: (rating: number, comment: string) => Promise<void> | void
   onCloseStatusEdit: () => void
   onSubmitStatusEdit: (data: { type?: number; rating?: number; comment?: string }) => Promise<void> | void
 }
@@ -74,11 +65,9 @@ export function MainPage({
   isLoading,
   error,
   expandedCard,
-  selectedEpisodes,
   unwatchedCounts,
   contextMenu,
   hoveredEp,
-  pendingRating,
   statusEditItem,
   toast,
   onOpenSettings,
@@ -90,19 +79,13 @@ export function MainPage({
   onSelectSubjectType,
   onToggleCard,
   onMarkEpisode,
-  onBatchMark,
   onOpenSubject,
   onShowEpisodeMenu,
-  getSelectedEpisodeIds,
-  setSelectedEpisodes,
   setHoveredEp,
-  onRequestRating,
   onUnwatchedUpdate,
   onEditStatus,
   clearNotifications,
   onCloseContextMenu,
-  onCloseRating,
-  onSubmitRating,
   onCloseStatusEdit,
   onSubmitStatusEdit,
 }: MainPageProps) {
@@ -207,18 +190,13 @@ export function MainPage({
                 item={item}
                 index={index}
                 expandedCard={expandedCard}
-                selectedEpisodes={selectedEpisodes}
                 isLoggedIn={true}
                 selectedFilter={selectedFilter}
                 onToggleCard={onToggleCard}
                 onMarkEpisode={onMarkEpisode}
-                onBatchMark={onBatchMark}
                 onOpenSubject={onOpenSubject}
                 onShowEpisodeMenu={onShowEpisodeMenu}
-                getSelectedEpisodeIds={getSelectedEpisodeIds}
-                setSelectedEpisodes={setSelectedEpisodes}
                 setHoveredEp={setHoveredEp}
-                onRequestRating={onRequestRating}
                 onUnwatchedUpdate={onUnwatchedUpdate}
                 unwatchedCounts={unwatchedCounts}
                 onEditStatus={onEditStatus}
@@ -242,18 +220,13 @@ export function MainPage({
             item={item}
             index={index}
             expandedCard={expandedCard}
-            selectedEpisodes={selectedEpisodes}
             isLoggedIn={true}
             selectedFilter={selectedFilter}
             onToggleCard={onToggleCard}
             onMarkEpisode={onMarkEpisode}
-            onBatchMark={onBatchMark}
             onOpenSubject={onOpenSubject}
             onShowEpisodeMenu={onShowEpisodeMenu}
-            getSelectedEpisodeIds={getSelectedEpisodeIds}
-            setSelectedEpisodes={setSelectedEpisodes}
             setHoveredEp={setHoveredEp}
-            onRequestRating={onRequestRating}
             onUnwatchedUpdate={onUnwatchedUpdate}
             unwatchedCounts={unwatchedCounts}
             onEditStatus={onEditStatus}
@@ -284,10 +257,6 @@ export function MainPage({
           {hoveredEp.ep.epAirdate && <div className="ep-tooltip-date">播出: {hoveredEp.ep.epAirdate}</div>}
           <div className="ep-tooltip-status">{hoveredEp.ep.isWatched ? '已看' : '未看'}</div>
         </div>
-      )}
-
-      {pendingRating && (
-        <RatingModal subject={pendingRating} onClose={onCloseRating} onSubmit={onSubmitRating} />
       )}
 
       {statusEditItem && (
