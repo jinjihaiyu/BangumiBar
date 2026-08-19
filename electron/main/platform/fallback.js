@@ -36,10 +36,15 @@ function getPopoverWindowOptions() {
   return {};
 }
 
+// 未知平台不猜测 Dock 语义，保持原有行为。
+function hideDockIcon() {
+}
+
 module.exports = {
   name: 'fallback',
   getPopoverPosition,
   registerProtocolClient,
   applyOpenAtLogin,
+  hideDockIcon,
   getPopoverWindowOptions,
 };

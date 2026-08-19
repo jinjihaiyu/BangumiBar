@@ -8,6 +8,7 @@ const desktopAPI = {
   closeSettings: () => ipcRenderer.invoke('close-settings'),
   getVersion: () => ipcRenderer.invoke('get-version'),
   showNotification: (title, body) => ipcRenderer.invoke('show-notification', { title, body }),
+  getBroadcastSchedule: () => ipcRenderer.invoke('get-broadcast-schedule'),
   platform: process.platform,
 };
 

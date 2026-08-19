@@ -32,7 +32,6 @@ function createPopoverWindow(app) {
       // 拆分后的 preload 需要加载本地模块，关闭 sandbox 以保留 CommonJS require 能力。
       sandbox: false,
       preload: path.join(__dirname, '../preload.js'),
-      webSecurity: false,
     },
   });
 

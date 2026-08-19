@@ -61,10 +61,15 @@ function getPopoverWindowOptions() {
   return {};
 }
 
+// Windows 没有 Dock 概念，托盘图标本身不占任务栏位置。
+function hideDockIcon() {
+}
+
 module.exports = {
   name: 'win',
   getPopoverPosition,
   registerProtocolClient,
   applyOpenAtLogin,
+  hideDockIcon,
   getPopoverWindowOptions,
 };

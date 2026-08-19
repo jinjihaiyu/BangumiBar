@@ -1,10 +1,11 @@
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const { initLogFile, log } = require('./main/log');
 const { setStore, getAppState } = require('./main/app-context');
 const { createTray } = require('./main/tray-controller');
 const { createPopoverWindow, togglePopover, openSettings } = require('./main/window-controller');
 const { setupUrlScheme, handleLaunchArgs } = require('./main/protocol-controller');
+const { getPlatformAdapter } = require('./main/platform');
 const { setupIPC } = require('./main/ipc');
 
 if (process.env.ELECTRON_DISABLE_SANDBOX === '1') {
@@ -43,25 +44,15 @@ if (!setupSingleInstance()) {
   app.quit();
 }
 
-function setupWebSecurityBypass() {
-  app.on('certificate-error', (event, _webContents, _url, _error, _certificate, callback) => {
-    event.preventDefault();
-    callback(true);
-  });
-
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({ responseHeaders: details.responseHeaders });
-  });
-}
-
 app.whenReady().then(() => {
   initLogFile(app);
   log('App starting...');
 
+  getPlatformAdapter().hideDockIcon(app);
+
   const Store = require('electron-store');
   setStore(new Store());
 
-  setupWebSecurityBypass();
   setupUrlScheme(app);
   setupIPC(app);
   createTray(app, { togglePopover, openSettings });

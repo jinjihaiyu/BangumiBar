@@ -3,7 +3,9 @@ import './index.css'
 import { useAppSettings } from './app/hooks/useAppSettings'
 import { useAuth } from './app/hooks/useAuth'
 import { useCollections } from './app/hooks/useCollections'
+import { useSchedule } from './app/hooks/useSchedule'
 import { desktopApi } from './platform/desktop-api'
+import { getSubjectId } from './utils'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MainPage } from './pages/MainPage'
@@ -14,7 +16,8 @@ const SUBJECT_TYPES = [
   { value: 4, label: '游戏', icon: '🎮' }
 ]
 
-const getSubjectId = (item: any): number => item.subjectId || item.subject?.id || item.subject_id
+// 设置窗口加载的是同一个入口，hash 在窗口生命周期内固定。
+const IS_SETTINGS_WINDOW = window.location.hash === '#settings'
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 function App() {
@@ -89,6 +92,9 @@ function App() {
     onToast: showToast,
   })
 
+  // 设置窗口不需要放送表，避免白跑一次抓取。
+  const { scheduleMap, scheduleUnavailable, loadSchedule } = useSchedule(isLoggedIn && !IS_SETTINGS_WINDOW)
+
   useEffect(() => {
     onAuthenticatedRef.current = async ({ username: nextUsername, force }) => {
       await loadCollections({ force, usernameOverride: nextUsername })
@@ -113,6 +119,11 @@ function App() {
   const onStatusEditSubmit = useCallback(async (data: { type?: number; rating?: number; comment?: string }) => {
     await handleStatusEdit(statusEditItem, data)
   }, [handleStatusEdit, statusEditItem])
+
+  const onRefreshAll = useCallback(() => {
+    handleRefreshCollections()
+    void loadSchedule({ force: true })
+  }, [handleRefreshCollections, loadSchedule])
 
   // ─── UI handlers ─────────────────────────────────────────────────────────
 
@@ -170,7 +181,7 @@ function App() {
     let cancelled = false
 
     const initApp = async () => {
-      if (window.location.hash === '#settings') setCurrentPage('settings')
+      if (IS_SETTINGS_WINDOW) setCurrentPage('settings')
       desktopApi.onAuthCallback(handleAuthCallback)
       await initializeSettings()
       if (cancelled) return
@@ -243,6 +254,8 @@ function App() {
       error={error}
       expandedCard={expandedCard}
       unwatchedCounts={unwatchedCounts}
+      scheduleMap={scheduleMap}
+      scheduleUnavailable={scheduleUnavailable}
       contextMenu={contextMenu}
       hoveredEp={hoveredEp}
       statusEditItem={statusEditItem}
@@ -252,7 +265,7 @@ function App() {
       onSearchChange={setSearchQuery}
       onClearSearch={() => setSearchQuery('')}
       onSelectFilter={setSelectedFilter}
-      onRefreshCollections={handleRefreshCollections}
+      onRefreshCollections={onRefreshAll}
       onSelectSubjectType={setSelectedSubjectType}
       onToggleCard={toggleCard}
       onMarkEpisode={markEpisode}

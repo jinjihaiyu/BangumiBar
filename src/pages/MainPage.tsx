@@ -1,6 +1,6 @@
 import { AnimeCard } from '../components/AnimeCard'
 import { StatusEditModal } from '../components/StatusEditModal'
-import { formatTime } from '../utils'
+import { formatTime, getSubjectId } from '../utils'
 
 type SubjectTypeOption = {
   value: number
@@ -25,6 +25,8 @@ type MainPageProps = {
   error: string | null
   expandedCard: number | null
   unwatchedCounts: Record<number, number>
+  scheduleMap: Record<number, number>
+  scheduleUnavailable: boolean
   contextMenu: { x: number; y: number; subjectId: number; episodeId: number } | null
   hoveredEp: { x: number; y: number; ep: any } | null
   statusEditItem: { subject: any; subjectType: number; collectionItem: any } | null
@@ -66,6 +68,8 @@ export function MainPage({
   error,
   expandedCard,
   unwatchedCounts,
+  scheduleMap,
+  scheduleUnavailable,
   contextMenu,
   hoveredEp,
   statusEditItem,
@@ -125,7 +129,11 @@ export function MainPage({
           </button>
         ))}
         <div className="filter-spacer" />
-        <button className="filter-refresh-btn" onClick={onRefreshCollections} title="刷新">↻</button>
+        <button
+          className={`filter-refresh-btn ${scheduleUnavailable ? 'degraded' : ''}`}
+          onClick={onRefreshCollections}
+          title={scheduleUnavailable ? '刷新（放送表未加载，更新状态暂按日期判断）' : '刷新'}
+        >↻</button>
         <span className="filter-count">{searchQuery.trim() ? `${searchResults.length}条结果` : `${filteredCollections.length}部`}</span>
       </div>
 
@@ -186,7 +194,7 @@ export function MainPage({
             <div className="search-results-hint">在在看+想看中找到 {searchResults.length} 个结果</div>
             {searchResults.map((item, index) => (
               <AnimeCard
-                key={(item.subjectId || item.subject?.id || item.subject_id) || index}
+                key={getSubjectId(item) || index}
                 item={item}
                 index={index}
                 expandedCard={expandedCard}
@@ -199,6 +207,7 @@ export function MainPage({
                 setHoveredEp={setHoveredEp}
                 onUnwatchedUpdate={onUnwatchedUpdate}
                 unwatchedCounts={unwatchedCounts}
+                scheduleMap={scheduleMap}
                 onEditStatus={onEditStatus}
                 subjectType={selectedSubjectType}
               />
@@ -216,7 +225,7 @@ export function MainPage({
 
         {!isLoading && !error && !showNotifications && !searchQuery.trim() && sortedCollections.map((item, index) => (
           <AnimeCard
-            key={(item.subjectId || item.subject?.id || item.subject_id) || index}
+            key={getSubjectId(item) || index}
             item={item}
             index={index}
             expandedCard={expandedCard}
@@ -229,6 +238,7 @@ export function MainPage({
             setHoveredEp={setHoveredEp}
             onUnwatchedUpdate={onUnwatchedUpdate}
             unwatchedCounts={unwatchedCounts}
+            scheduleMap={scheduleMap}
             onEditStatus={onEditStatus}
             subjectType={selectedSubjectType}
           />

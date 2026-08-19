@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from 'react'
 import { api } from '../services/bangumi-service'
 import { clearAuthStorage, persistTokenData } from '../services/auth-service'
 import { storage } from '../services/cache-service'
-import { desktopApi } from '../../platform/desktop-api'
 
 type AuthenticatedPayload = {
   token: string
@@ -76,7 +75,7 @@ export function useAuth() {
   }, [logout])
 
   const openAuthPage = useCallback(() => {
-    desktopApi.openExternal(api.getAuthUrl()) || window.open(api.getAuthUrl(), '_blank', 'width=500,height=600')
+    api.openAuthPage()
   }, [])
 
   const handleCallback = useCallback(async (data: any, onAuthenticated: HandleAuthSuccess) => {

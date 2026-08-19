@@ -21,11 +21,12 @@ function createTrayIcon() {
   return nativeImage.createEmpty();
 }
 
-function showAbout() {
+function showAbout(app) {
   dialog.showMessageBox({
     type: 'info',
     title: '关于 BangumiBar',
-    message: 'BangumiBar v1.0.0',
+    // 版本号取自 package.json，避免写死之后和发布版本脱节。
+    message: `BangumiBar v${app.getVersion()}`,
     detail: 'Bangumi 追番管理菜单栏应用\n\nMade with ❤️ for Bangumi users',
   });
 }
@@ -38,7 +39,7 @@ function updateTrayMenu(app, { togglePopover, openSettings }) {
     { label: '显示/隐藏', click: () => togglePopover(app) },
     { label: '设置', click: () => openSettings(app) },
     { type: 'separator' },
-    { label: '关于', click: () => showAbout() },
+    { label: '关于', click: () => showAbout(app) },
     { type: 'separator' },
     { label: '退出', click: () => { app.isQuitting = true; app.quit(); } },
   ]));

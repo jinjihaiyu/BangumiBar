@@ -1,6 +1,6 @@
 {
   "name": "bangumibar",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Bangumi 追番管理菜单栏应用",
   "author": "jinjihaiyu",
   "license": "MIT",
@@ -16,8 +16,7 @@
     "build:app": "npm run clean && npm run build && npm run pack:dir"
   },
   "dependencies": {
-    "electron-store": "^8.1.0",
-    "esbuild": "^0.28.0"
+    "electron-store": "^8.1.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
@@ -47,7 +46,18 @@
     "mac": {
       "category": "public.app-category.entertainment",
       "target": "dmg",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "LSUIElement": "1"
+      },
+      "protocols": [
+        {
+          "name": "BangumiBar Auth Callback",
+          "schemes": [
+            "bangumibar"
+          ]
+        }
+      ]
     },
     "win": {
       "target": "nsis",

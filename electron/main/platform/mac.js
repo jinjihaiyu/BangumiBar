@@ -16,6 +16,13 @@ function applyOpenAtLogin(app, enabled) {
   });
 }
 
+// 打好的包靠 Info.plist 里的 LSUIElement 就不会有 Dock 图标（见 package.json 的 build.mac.extendInfo），
+// 但 `npm run dev` 跑的是 Electron 自带的 bundle，读不到那份 plist，所以运行时再隐一次：
+// 一是让开发态和发布态一致，二是 Dock 图标会把应用变成 regular 类型，窗口失焦行为跟发布态不一样。
+function hideDockIcon(app) {
+  if (app.dock) app.dock.hide();
+}
+
 function getPopoverWindowOptions() {
   return {};
 }
@@ -25,5 +32,6 @@ module.exports = {
   getPopoverPosition,
   registerProtocolClient,
   applyOpenAtLogin,
+  hideDockIcon,
   getPopoverWindowOptions,
 };

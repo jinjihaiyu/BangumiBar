@@ -128,18 +128,20 @@ npm run dev
 
 当前为了保证本地 `preload` 桥接和现有页面加载链路稳定，Electron 窗口配置里仍保留了少量偏宽松设置。它们不会阻塞当前开发和使用，但在后续发布前建议逐步收口：
 
-- `webSecurity: false`
-  - 当前位置：`electron/main/window-controller.js`
-  - 待办：确认当前页面实际依赖后，恢复为默认安全值，避免继续触发 Electron 的安全告警
 - `sandbox: false`
   - 当前位置：`electron/main/window-controller.js`
   - 原因：当前拆分后的 `preload.js` 仍依赖 CommonJS `require('./preload/bridge')`
   - 待办：后续可以把 preload 构建链路独立出来，改成不依赖运行时 `require`，再评估恢复 sandbox
-- Content Security Policy
-  - 现状：当前页面没有完整收口 CSP，因此仍会看到相关安全提示
-  - 待办：为 `index.html` 和渲染资源补明确的 CSP，收紧脚本与资源来源
+- access token 仍存放在渲染层 `localStorage`
+  - 现状：CSP 的 `connect-src 'none'` 已经堵掉了用 fetch 外传的路径，但 `<img src>` 之类的旁路理论上仍存在
+  - 待办：迁到主进程的 `electron-store`（IPC 已有 `get-store` / `set-store`），代价是登录态迁移，需要单独一轮处理
 
-建议顺序：先收口 `preload` 构建方式，再恢复 `sandbox`；随后处理 `webSecurity` 和 CSP，这样对现有功能影响最小。
+已完成收口：
+
+- `webSecurity` 已恢复默认值，`main.js` 里无条件接受非法 TLS 证书的旁路也已删除
+- 渲染层不再直接发网络请求，全部经主进程 `electron/main/http-controller.js` 出网，并受主机白名单约束
+- `index.html` 已补 CSP，其中 `connect-src 'none'` 把「网络只走主进程」变成浏览器层面的强制约束
+- OAuth 的 `client_secret` 已移出渲染层 bundle，只保留在 `electron/main/auth-controller.js`
 
 ## 发布元信息待办
 

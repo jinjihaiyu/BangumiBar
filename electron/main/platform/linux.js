@@ -64,10 +64,15 @@ function getPopoverWindowOptions() {
   return {};
 }
 
+// Linux 没有 Dock 概念，任务栏/面板的显示由桌面环境自行决定。
+function hideDockIcon() {
+}
+
 module.exports = {
   name: 'linux',
   getPopoverPosition,
   registerProtocolClient,
   applyOpenAtLogin,
+  hideDockIcon,
   getPopoverWindowOptions,
 };

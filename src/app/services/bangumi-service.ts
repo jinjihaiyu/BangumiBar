@@ -1,9 +1,10 @@
 import { persistentCache } from './cache-service'
-import { buildAuthUrl, requestAccessToken, requestRefreshToken } from './auth-service'
+import { openAuthPage, requestAccessToken, requestRefreshToken } from './auth-service'
+import { bangumiFetch } from './http-service'
 import { getActiveBangumiSite } from './settings-service'
 
 export const api = {
-  getAuthUrl: () => buildAuthUrl(),
+  openAuthPage: () => openAuthPage(),
 
   getAccessToken: async (code: string) => requestAccessToken(code),
 
@@ -11,10 +12,9 @@ export const api = {
 
   getMe: async (token: string) => {
     const site = getActiveBangumiSite()
-    const response = await fetch(`${site.apiBase}/v0/me`, {
+    const response = await bangumiFetch(`${site.apiBase}/v0/me`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'User-Agent': 'BangumiBar/1.0 (Electron)'
+        'Authorization': `Bearer ${token}`
       }
     })
 
@@ -27,9 +27,7 @@ export const api = {
     if (cached) return cached
 
     const site = getActiveBangumiSite()
-    const response = await fetch(`${site.apiBase}/v0/subjects/${subjectId}`, {
-      headers: { 'User-Agent': 'BangumiBar/1.0 (Electron)' }
-    })
+    const response = await bangumiFetch(`${site.apiBase}/v0/subjects/${subjectId}`)
 
     if (!response.ok) throw new Error('获取条目详情失败')
 
@@ -45,10 +43,9 @@ export const api = {
       const site = getActiveBangumiSite()
       const offset = (page - 1) * limit
       const url = `${site.apiBase}/v0/users/${username}/collections?type=${type}&subject_type=${subjectType}&limit=${limit}&offset=${offset}`
-      const response = await fetch(url, {
+      const response = await bangumiFetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': 'BangumiBar/1.0 (Electron)'
+          'Authorization': `Bearer ${token}`
         }
       })
 
@@ -77,10 +74,9 @@ export const api = {
 
   getEpisodes: async (token: string, subjectId: number) => {
     const site = getActiveBangumiSite()
-    const response = await fetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
+    const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'User-Agent': 'BangumiBar/1.0 (Electron)'
+        'Authorization': `Bearer ${token}`
       }
     })
 
@@ -92,12 +88,11 @@ export const api = {
 
   updateEpisodeProgress: async (token: string, episodeId: number, status: number = 2) => {
     const site = getActiveBangumiSite()
-    const response = await fetch(`${site.apiBase}/v0/users/-/collections/-/episodes/${episodeId}`, {
+    const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/-/episodes/${episodeId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'BangumiBar/1.0 (Electron)'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ type: status })
     })
@@ -112,12 +107,11 @@ export const api = {
 
   updateCollection: async (token: string, subjectId: number, data: { rating?: number; comment?: string; type?: number }) => {
     const site = getActiveBangumiSite()
-    const response = await fetch(`${site.apiBase}/v0/users/-/collections/${subjectId}`, {
+    const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'BangumiBar/1.0 (Electron)'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
     })

@@ -1,3 +1,5 @@
+import { bangumiFetch } from './http-service'
+
 export type AppSettings = {
   openAtLogin: boolean
   showNotifications: boolean
@@ -51,24 +53,19 @@ export function getActiveBangumiSite(): BangumiSiteConfig {
 }
 
 async function canReachUrl(url: string, timeoutMs = 2500): Promise<boolean> {
-  const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
-
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
+    // 超时交给主进程处理（渲染层已不再直接出网），语义与原来的 AbortController 一致。
+    const response = await bangumiFetch(url, {
+      timeoutMs,
       headers: {
         'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'User-Agent': 'BangumiBar/1.0 (Electron)'
+        'Pragma': 'no-cache'
       }
     })
 
     return response.ok
   } catch {
     return false
-  } finally {
-    window.clearTimeout(timeoutId)
   }
 }
 

@@ -98,7 +98,7 @@ export function SettingsPage({
           <div className="settings-item">
             <span className="settings-icon">📱</span>
             <span className="settings-item-text">版本</span>
-            <span className="settings-item-hint">1.0.0</span>
+            <span className="settings-item-hint">{__APP_VERSION__}</span>
           </div>
         </div>
       </div>

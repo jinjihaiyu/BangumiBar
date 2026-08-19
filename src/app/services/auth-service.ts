@@ -1,9 +1,7 @@
 import { storage } from './cache-service'
+import { bangumiOAuthToken, type HttpResponse } from './http-service'
 import { getActiveBangumiSite } from './settings-service'
-
-export const BGM_CLIENT_ID = 'bgm601969ef220ea48ae'
-export const BGM_CLIENT_SECRET = 'adcf8bf04974ddcb88e5425e194da65c'
-export const BGM_REDIRECT_URI = 'bangumibar://auth'
+import { desktopApi } from '../../platform/desktop-api'
 
 type TokenResponse = {
   access_token: string
@@ -11,18 +9,13 @@ type TokenResponse = {
   expires_in?: number
 }
 
-export function buildAuthUrl() {
+// 授权页的 URL 由主进程拼（client_id 在那边），这里只负责告诉它用哪个站点。
+export function openAuthPage() {
   const site = getActiveBangumiSite()
-  const params = new URLSearchParams({
-    client_id: BGM_CLIENT_ID,
-    response_type: 'code',
-    redirect_uri: BGM_REDIRECT_URI
-  })
-
-  return `${site.webBase}/oauth/authorize?${params}`
+  return desktopApi.openAuthPage(site.webBase)
 }
 
-async function parseTokenResponse(response: Response, errorPrefix: string): Promise<TokenResponse> {
+async function parseTokenResponse(response: HttpResponse, errorPrefix: string): Promise<TokenResponse> {
   const text = await response.text()
   if (!response.ok) throw new Error(`${errorPrefix}: ${text}`)
 
@@ -35,39 +28,14 @@ async function parseTokenResponse(response: Response, errorPrefix: string): Prom
 
 export async function requestAccessToken(code: string): Promise<TokenResponse> {
   const site = getActiveBangumiSite()
-  const response = await fetch(`${site.webBase}/oauth/access_token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'BangumiBar/1.0 (Electron)'
-    },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: BGM_CLIENT_ID,
-      client_secret: BGM_CLIENT_SECRET,
-      code,
-      redirect_uri: BGM_REDIRECT_URI
-    })
-  })
+  const response = await bangumiOAuthToken({ webBase: site.webBase, grantType: 'authorization_code', code })
 
   return parseTokenResponse(response, '获取授权失败')
 }
 
 export async function requestRefreshToken(refreshToken: string): Promise<TokenResponse> {
   const site = getActiveBangumiSite()
-  const response = await fetch(`${site.webBase}/oauth/access_token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'BangumiBar/1.0 (Electron)'
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: BGM_CLIENT_ID,
-      client_secret: BGM_CLIENT_SECRET,
-      refresh_token: refreshToken
-    })
-  })
+  const response = await bangumiOAuthToken({ webBase: site.webBase, grantType: 'refresh_token', refreshToken })
 
   return parseTokenResponse(response, '刷新令牌失败')
 }

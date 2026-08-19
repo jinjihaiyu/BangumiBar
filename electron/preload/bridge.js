@@ -1,6 +1,7 @@
 const { contextBridge } = require('electron');
 const { authAPI } = require('./auth');
 const { desktopAPI, storeAPI } = require('./desktop');
+const { netAPI } = require('./net');
 const { settingsAPI } = require('./settings');
 
 function buildElectronAPI() {
@@ -18,13 +19,18 @@ function buildElectronAPI() {
     closeSettings: desktopAPI.closeSettings,
     getVersion: desktopAPI.getVersion,
     showNotification: desktopAPI.showNotification,
+    getBroadcastSchedule: desktopAPI.getBroadcastSchedule,
     getAppSettings: settingsAPI.get,
     setAppSettings: settingsAPI.update,
+    request: netAPI.request,
+    oauthToken: netAPI.oauthToken,
+    openAuthPage: netAPI.openAuthPage,
     platform: desktopAPI.platform,
 
     // 新合同先预留分组式入口，后续渲染层可逐步切换。
     auth: authAPI,
     desktop: desktopAPI,
+    net: netAPI,
     settings: settingsAPI,
   };
 }
