@@ -1,0 +1,5 @@
+# NSIS 安装包的许可协议由 Windows RichEdit 控件渲染，只认 CRLF：
+# 若以 LF 检出，整篇协议会挤成一段不换行的文字。这里强制按 CRLF 检出，
+# 不受各人 core.autocrlf 配置影响（本机全局是 input，会把 CRLF 全部吃掉）。
+# 文件本身还需保留 UTF-8 BOM，否则 NSIS 会按 ANSI 解释中文。
+build/license_*.txt text eol=crlf

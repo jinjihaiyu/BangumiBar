@@ -57,15 +57,18 @@
             "bangumibar"
           ]
         }
-      ]
+      ],
+      "artifactName": "BangumiBar-${version}-mac-${arch}.${ext}"
     },
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "artifactName": "BangumiBar-${version}-win-${arch}.${ext}"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "BangumiBar-${version}-linux-${arch}.${ext}"
     }
   }
 }
