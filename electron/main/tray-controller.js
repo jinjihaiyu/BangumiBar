@@ -4,6 +4,22 @@ const { setTray, getAppState } = require('./app-context');
 const { log } = require('./log');
 
 function createTrayIcon() {
+  // macOS 菜单栏使用系统 template icon，自动适配浅色、深色和高亮状态。
+  if (process.platform === 'darwin') {
+    const templateIcon = nativeImage.createFromPath(path.join(__dirname, '../trayTemplate.png'));
+    if (!templateIcon.isEmpty()) {
+      const templateIcon2x = nativeImage.createFromPath(path.join(__dirname, '../trayTemplate@2x.png'));
+      if (!templateIcon2x.isEmpty()) {
+        templateIcon.addRepresentation({
+          scaleFactor: 2,
+          buffer: templateIcon2x.toPNG(),
+        });
+      }
+      templateIcon.setTemplateImage(true);
+      return templateIcon;
+    }
+  }
+
   const icon2x = path.join(__dirname, '../icon@2x.png');
   const icon1x = path.join(__dirname, '../icon.png');
 
