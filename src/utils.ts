@@ -48,7 +48,9 @@ export function getEpisodeNumber(ep: any): number {
 
 export function isMainStoryEpisode(ep: any): boolean {
   const epNumber = getEpisodeNumber(ep)
-  return Number.isInteger(epNumber) && epNumber > 0
+  // Bangumi 的 EpType：本篇 = 0，OP = 2，ED = 3。
+  const episodeKind = ep?.episode?.type
+  return Number.isInteger(epNumber) && epNumber > 0 && episodeKind !== 2 && episodeKind !== 3
 }
 
 export function filterMainStoryEpisodes(eps: any[]): any[] {
