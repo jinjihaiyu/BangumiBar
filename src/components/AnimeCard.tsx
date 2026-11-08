@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
 import { api } from '../app/services/bangumi-service'
 import { CACHE_TTL_MS, episodeCache, persistentCache, storage } from '../app/services/cache-service'
-import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getEpisodeNumber, getNextEpisode, getSubjectId, isAired } from '../utils'
+import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, isAired } from '../utils'
 
 type HoveredEpisode = { x: number; y: number; ep: any } | null
 
@@ -11,6 +11,7 @@ export interface AnimeCardProps {
   expandedCard: number | null
   isLoggedIn: boolean
   selectedFilter: number
+  showChineseTitle: boolean
   onToggleCard: (event: MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
   onOpenSubject: (subjectId: number) => void
@@ -39,6 +40,7 @@ export function AnimeCard({
   index: _index,
   expandedCard,
   selectedFilter,
+  showChineseTitle,
   onToggleCard,
   onMarkEpisode,
   onOpenSubject,
@@ -66,6 +68,7 @@ export function AnimeCard({
   const isAiredSubject = airDate ? new Date(airDate) <= new Date() : false
   const isEnded = isAiredSubject && !!endDate && new Date(endDate) < new Date()
   const rating = subject?.rating?.score || item.subject?.rating?.score || 0
+  const displayTitle = getSubjectDisplayTitle(subject || item.subject, showChineseTitle)
 
   const effectiveTotal = totalEpisodes > 0 ? totalEpisodes : episodes.length
   const displayedUnwatched = unwatchedCounts[subjectId] || 0
@@ -214,7 +217,7 @@ export function AnimeCard({
       />
       <div className="anime-info">
         <div className="anime-title-row">
-          <div className="anime-title">{item.subject?.nameCn || item.subject?.name || '未知'}</div>
+          <div className="anime-title">{displayTitle}</div>
           <button
             className="anime-edit-btn"
             onClick={event => {
@@ -268,7 +271,7 @@ export function AnimeCard({
                 episodes.map(episode => {
                   const episodeId = episode.episode?.id || episode.id
                   const episodeNumber = getEpisodeNumber(episode)
-                  const episodeName = episode.episode?.nameCn || episode.episode?.name || ''
+                  const episodeName = episode.episode?.name_cn || episode.episode?.nameCn || episode.episode?.name || ''
                   const episodeAirdate = episode.episode?.airdate || ''
                   const isWatched = episode.type === 2
                   const aired = isAired(episodeAirdate, broadcastMinutes)

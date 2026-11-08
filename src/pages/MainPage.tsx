@@ -17,6 +17,7 @@ type MainPageProps = {
   searchQuery: string
   selectedFilter: number
   selectedSubjectType: number
+  showChineseTitle: boolean
   subjectTypes: SubjectTypeOption[]
   searchResults: any[]
   filteredCollections: any[]
@@ -38,6 +39,7 @@ type MainPageProps = {
   onSelectFilter: (value: number) => void
   onRefreshCollections: () => void
   onSelectSubjectType: (value: number) => void
+  onToggleTitleLanguage: () => void
   onToggleCard: (event: React.MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
   onOpenSubject: (subjectId: number) => void
@@ -60,6 +62,7 @@ export function MainPage({
   searchQuery,
   selectedFilter,
   selectedSubjectType,
+  showChineseTitle,
   subjectTypes,
   searchResults,
   filteredCollections,
@@ -81,6 +84,7 @@ export function MainPage({
   onSelectFilter,
   onRefreshCollections,
   onSelectSubjectType,
+  onToggleTitleLanguage,
   onToggleCard,
   onMarkEpisode,
   onOpenSubject,
@@ -148,6 +152,20 @@ export function MainPage({
             <span className="type-label">{subjectType.label}</span>
           </button>
         ))}
+        <div className="type-spacer" />
+        <button
+          type="button"
+          className={`title-language-toggle ${showChineseTitle ? 'active' : ''}`}
+          role="switch"
+          aria-checked={showChineseTitle}
+          onClick={onToggleTitleLanguage}
+          title={showChineseTitle ? '当前显示中文译名，点击切换为原名' : '当前显示原名，点击切换为中文译名'}
+        >
+          <span className="title-language-label">显示中文</span>
+          <span className="title-language-track">
+            <span className="title-language-thumb" />
+          </span>
+        </button>
       </div>
 
       <div className="content">
@@ -200,6 +218,7 @@ export function MainPage({
                 expandedCard={expandedCard}
                 isLoggedIn={true}
                 selectedFilter={selectedFilter}
+                showChineseTitle={showChineseTitle}
                 onToggleCard={onToggleCard}
                 onMarkEpisode={onMarkEpisode}
                 onOpenSubject={onOpenSubject}
@@ -231,6 +250,7 @@ export function MainPage({
             expandedCard={expandedCard}
             isLoggedIn={true}
             selectedFilter={selectedFilter}
+            showChineseTitle={showChineseTitle}
             onToggleCard={onToggleCard}
             onMarkEpisode={onMarkEpisode}
             onOpenSubject={onOpenSubject}

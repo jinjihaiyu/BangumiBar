@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../services/bangumi-service'
 import { persistentCache } from '../services/cache-service'
 import { desktopApi } from '../../platform/desktop-api'
+import { getSubjectDisplayTitle } from '../../utils'
 
 type NotificationItem = {
   id: number
@@ -157,7 +158,7 @@ export function useCollections({
       setNotificationCount(notifCountRef.current)
 
       const colItem = collections.find(item => getSubjectId(item) === subjectId)
-      const name = colItem?.subject?.nameCn || colItem?.subject?.name || '番剧'
+      const name = getSubjectDisplayTitle(colItem)
 
       setNotifications(prev => [buildNotification({
         id: Date.now(),

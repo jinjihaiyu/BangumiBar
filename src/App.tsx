@@ -5,7 +5,7 @@ import { useAuth } from './app/hooks/useAuth'
 import { useCollections } from './app/hooks/useCollections'
 import { useSchedule } from './app/hooks/useSchedule'
 import { desktopApi } from './platform/desktop-api'
-import { getSubjectId } from './utils'
+import { getSubjectId, getSubjectSearchText } from './utils'
 import { LoginPage } from './pages/LoginPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { MainPage } from './pages/MainPage'
@@ -26,6 +26,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subjectId: number; episodeId: number } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showChineseTitle, setShowChineseTitle] = useState(true)
   const [statusEditItem, setStatusEditItem] = useState<{ subject: any; subjectType: number; collectionItem: any } | null>(null)
   const [hoveredEp, setHoveredEp] = useState<{ x: number; y: number; ep: any } | null>(null)
   const onAuthenticatedRef = useRef<(payload: { token: string; username: string; force: boolean }) => Promise<void>>(async () => {})
@@ -142,23 +143,21 @@ function App() {
     desktopApi.openExternal(`${activeSite.webBase}/subject/${subjectId}`)
   }
 
+  const onToggleTitleLanguage = useCallback(() => {
+    setShowChineseTitle(current => !current)
+  }, [])
+
   // ─── Filter & sort ────────────────────────────────────────────────────────
 
   const filteredCollections = searchQuery.trim()
     ? collections.filter(item => {
-        const name = item.subject?.nameCn || item.subject?.name || ''
-        const nameRaw = item.subject?.name || ''
-        const q = searchQuery.toLowerCase()
-        return name.toLowerCase().includes(q) || nameRaw.toLowerCase().includes(q)
+        return getSubjectSearchText(item).includes(searchQuery.toLowerCase())
       })
     : collections
 
   const searchResults = searchQuery.trim()
     ? searchCorpus.filter(item => {
-        const name = item.subject?.nameCn || item.subject?.name || ''
-        const nameRaw = item.subject?.name || ''
-        const q = searchQuery.toLowerCase()
-        return name.toLowerCase().includes(q) || nameRaw.toLowerCase().includes(q)
+        return getSubjectSearchText(item).includes(searchQuery.toLowerCase())
       })
     : []
 
@@ -246,6 +245,7 @@ function App() {
       searchQuery={searchQuery}
       selectedFilter={selectedFilter}
       selectedSubjectType={selectedSubjectType}
+      showChineseTitle={showChineseTitle}
       subjectTypes={SUBJECT_TYPES}
       searchResults={searchResults}
       filteredCollections={filteredCollections}
@@ -267,6 +267,7 @@ function App() {
       onSelectFilter={setSelectedFilter}
       onRefreshCollections={onRefreshAll}
       onSelectSubjectType={setSelectedSubjectType}
+      onToggleTitleLanguage={onToggleTitleLanguage}
       onToggleCard={toggleCard}
       onMarkEpisode={markEpisode}
       onOpenSubject={openBangumiSubject}

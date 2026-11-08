@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
 import { StarRating } from './StarRating'
+import { getSubjectDisplayTitle } from '../utils'
 
 export interface StatusEditModalProps {
   subject: any
@@ -69,7 +70,7 @@ export function StatusEditModal({
         <div className="status-modal-subject">
           <img src={subject?.images?.medium} className="status-modal-poster" alt="" />
           <div className="status-modal-info">
-            <div className="status-modal-name">{subject?.nameCn || subject?.name}</div>
+            <div className="status-modal-name">{getSubjectDisplayTitle(subject)}</div>
             {metaText && <div className="status-modal-meta">{metaText}</div>}
           </div>
         </div>

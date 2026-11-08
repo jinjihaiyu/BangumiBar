@@ -41,6 +41,24 @@ export function getSubjectId(item: any): number {
   return item.subjectId || item.subject?.id || item.subject_id
 }
 
+export function getSubjectDisplayTitle(subjectOrCollectionItem: any, preferChineseTitle = true): string {
+  const subject = subjectOrCollectionItem?.subject || subjectOrCollectionItem
+  const rawName = typeof subject?.name === 'string' ? subject.name : ''
+  const chineseName = typeof subject?.name_cn === 'string' && subject.name_cn
+    ? subject.name_cn
+    : (typeof subject?.nameCn === 'string' ? subject.nameCn : '')
+
+  return (preferChineseTitle ? chineseName || rawName : rawName || chineseName) || '未知'
+}
+
+export function getSubjectSearchText(subjectOrCollectionItem: any): string {
+  const subject = subjectOrCollectionItem?.subject || subjectOrCollectionItem
+  return [subject?.name_cn, subject?.nameCn, subject?.name]
+    .filter(name => typeof name === 'string' && name)
+    .join(' ')
+    .toLowerCase()
+}
+
 export function getEpisodeNumber(ep: any): number {
   const rawNumber = ep?.episode?.sort ?? ep?.episode?.ep ?? ep?.sort ?? ep?.ep
   return Number(rawNumber)
