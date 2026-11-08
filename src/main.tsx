@@ -52,7 +52,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 try {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
-      <App />
+      {window.location.hash === '#settings' ? <App /> : <div id="app"><App /></div>}
     </ErrorBoundary>
   )
 } catch (e: unknown) {

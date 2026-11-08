@@ -1,8 +1,24 @@
 const path = require('path');
 const { BrowserWindow, screen } = require('electron');
-const { getAppState, setPopoverWindow, setSettingsWindow, clearHideTimeout, consumePendingAuthCallback } = require('./app-context');
+const { getAppState, setPopoverWindow, setSettingsWindow, clearHideTimeout, setHideTimeout, consumePendingAuthCallback } = require('./app-context');
 const { log } = require('./log');
 const { getPlatformAdapter } = require('./platform');
+
+const POPOVER_HIDE_ANIMATION_MS = 130;
+let popoverPhase = 'hidden';
+let popoverPendingShow = false;
+
+function presentPopover(window) {
+  popoverPendingShow = false;
+  popoverPhase = 'shown';
+  window.show();
+  window.focus();
+  log('Popover showing:', {
+    visible: window.isVisible(),
+    bounds: window.getBounds(),
+  });
+  sendPopoverVisibility(true);
+}
 
 function getRendererFile() {
   return path.join(__dirname, '../../dist/index.html');
@@ -16,7 +32,7 @@ function createPopoverWindow(app) {
 
   const window = new BrowserWindow({
     width: 360,
-    height: 520,
+    height: 540,
     show: false,
     frame: false,
     resizable: false,
@@ -39,13 +55,13 @@ function createPopoverWindow(app) {
 
   log('Popover window: creating with', getRendererFile());
   window.loadFile(getRendererFile());
-  window.once('ready-to-show', () => {
-    log('Popover window: ready-to-show - showing');
-    window.show();
-  });
   window.webContents.on('did-finish-load', () => {
     log('Popover window: did-finish-load');
     window.webContents.send('window-ready');
+    // did-finish-load 是首次点击最终可见的兜底入口。
+    if (popoverPendingShow) {
+      presentPopover(window);
+    }
     const pendingAuthCallback = consumePendingAuthCallback();
     if (pendingAuthCallback) {
       // 登录回调可能发生在窗口尚未完成加载时，这里在渲染进程就绪后补发。
@@ -64,10 +80,12 @@ function createPopoverWindow(app) {
     log('Popover: CRASHED');
   });
 
-  // 悬浮窗失焦后自动隐藏，保持当前菜单栏工具的使用手感。
+  // 悬浮窗失焦后自动隐藏，保持 macOS popover 的使用手感。
+  // 点击托盘本身也会让窗口失焦；用托盘激活时间戳区分这两种场景。
   window.on('blur', () => {
-    if (!app.isQuitting) {
-      window.hide();
+    const { isTrayActivationFresh } = require('./app-context');
+    if (!app.isQuitting && !isTrayActivationFresh()) {
+      hidePopover(app);
     }
   });
 
@@ -88,17 +106,44 @@ function createPopoverWindow(app) {
   return window;
 }
 
-function togglePopover(app) {
-  const window = createPopoverWindow(app);
-  const platformAdapter = getPlatformAdapter();
+function sendPopoverVisibility(visible) {
+  const { popoverWindow } = getAppState();
+  if (!popoverWindow || popoverWindow.isDestroyed() || popoverWindow.webContents.isDestroyed()) return;
+  popoverWindow.webContents.send('popover-visibility', visible);
+}
 
+function hidePopover(app, { animated = true } = {}) {
+  const { popoverWindow } = getAppState();
+  if (!popoverWindow || popoverWindow.isDestroyed() || !popoverWindow.isVisible()) {
+    popoverPhase = 'hidden';
+    popoverPendingShow = false;
+    return;
+  }
 
-  if (window.isVisible()) {
-    window.hide();
+  if (!animated) {
+    clearHideTimeout();
+    popoverPhase = 'hidden';
+    popoverPendingShow = false;
+    popoverWindow.hide();
     return;
   }
 
   clearHideTimeout();
+  popoverPhase = 'hiding';
+  sendPopoverVisibility(false);
+  setHideTimeout(setTimeout(() => {
+    if (!popoverWindow.isDestroyed() && popoverWindow.isVisible()) {
+      popoverWindow.hide();
+    }
+    popoverPhase = 'hidden';
+  }, POPOVER_HIDE_ANIMATION_MS), POPOVER_HIDE_ANIMATION_MS);
+}
+
+function showPopover(app) {
+  const window = createPopoverWindow(app);
+  const platformAdapter = getPlatformAdapter();
+  clearHideTimeout();
+  popoverPendingShow = false;
 
   const { tray } = getAppState();
   const trayBounds = tray?.getBounds();
@@ -118,13 +163,48 @@ function togglePopover(app) {
     window.setPosition(position.x, position.y, false);
   }
 
-  window.show();
+  // 首次点击时等待渲染完成，避免透明窗口先闪出一帧空面板。
+  if (window.webContents.isLoading()) {
+    popoverPhase = 'showing';
+    popoverPendingShow = true;
+    window.once('ready-to-show', () => {
+      if (popoverPendingShow) presentPopover(window);
+    });
+    return;
+  }
+
+  presentPopover(window);
+}
+
+function togglePopover(app) {
+  const window = createPopoverWindow(app);
+
+  // 关闭动画还未结束时再次点击，取消关闭比重新开关更符合直觉。
+  if (popoverPhase === 'hiding') {
+    clearHideTimeout();
+    popoverPhase = 'shown';
+    if (window.isVisible()) {
+      sendPopoverVisibility(true);
+    } else {
+      showPopover(app);
+    }
+    return;
+  }
+
+  if (popoverPhase === 'showing') return;
+
+  if (window.isVisible()) {
+    hidePopover(app);
+    return;
+  }
+
+  showPopover(app);
 }
 
 function openSettings(app) {
   const { popoverWindow, settingsWindow } = getAppState();
 
-  popoverWindow?.hide();
+  hidePopover(app, { animated: false });
   if (settingsWindow) {
     settingsWindow.show();
     settingsWindow.focus();
@@ -160,5 +240,6 @@ function openSettings(app) {
 module.exports = {
   createPopoverWindow,
   togglePopover,
+  hidePopover,
   openSettings,
 };

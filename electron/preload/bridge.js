@@ -16,6 +16,7 @@ function buildElectronAPI() {
     hidePopover: desktopAPI.hidePopover,
     cancelHide: desktopAPI.cancelHide,
     scheduleHide: desktopAPI.scheduleHide,
+    onPopoverVisibility: desktopAPI.onPopoverVisibility,
     closeSettings: desktopAPI.closeSettings,
     getVersion: desktopAPI.getVersion,
     showNotification: desktopAPI.showNotification,

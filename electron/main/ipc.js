@@ -5,6 +5,7 @@ const { showDesktopNotification } = require('./notification-controller');
 const { fetchBroadcastSchedule } = require('./schedule-controller');
 const { requestBangumi } = require('./http-controller');
 const { exchangeToken, openAuthPage } = require('./auth-controller');
+const { hidePopover } = require('./window-controller');
 
 function setupIPC(app) {
   ipcMain.handle('get-store', (_event, key) => {
@@ -23,11 +24,11 @@ function setupIPC(app) {
   });
 
   ipcMain.handle('open-external', (_event, url) => shell.openExternal(url));
-  ipcMain.handle('hide-popover', () => getAppState().popoverWindow?.hide());
+  ipcMain.handle('hide-popover', () => hidePopover(app));
   ipcMain.handle('cancel-hide', () => clearHideTimeout());
   ipcMain.handle('schedule-hide', (_event, delay) => {
     setHideTimeout(setTimeout(() => {
-      getAppState().popoverWindow?.hide();
+      hidePopover(app, { animated: false });
     }, delay));
   });
   ipcMain.handle('close-settings', () => getAppState().settingsWindow?.close());

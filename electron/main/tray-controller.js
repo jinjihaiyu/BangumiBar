@@ -1,6 +1,6 @@
 const path = require('path');
 const { Tray, Menu, nativeImage, dialog } = require('electron');
-const { setTray, getAppState } = require('./app-context');
+const { setTray, getAppState, markTrayActivation } = require('./app-context');
 const { log } = require('./log');
 
 function createTrayIcon() {
@@ -51,25 +51,34 @@ function updateTrayMenu(app, { togglePopover, openSettings }) {
   const { tray } = getAppState();
   if (!tray) return;
 
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示/隐藏', click: () => togglePopover(app) },
+  return Menu.buildFromTemplate([
     { label: '设置', click: () => openSettings(app) },
     { type: 'separator' },
     { label: '关于', click: () => showAbout(app) },
     { type: 'separator' },
     { label: '退出', click: () => { app.isQuitting = true; app.quit(); } },
-  ]));
+  ]);
 }
 
-function createTray(app, { togglePopover, openSettings }) {
+function createTray(app, { togglePopover, hidePopover, openSettings }) {
   const tray = new Tray(createTrayIcon());
   setTray(tray);
 
   tray.setToolTip('BangumiBar');
+  // 不绑定 contextMenu：左键只做 popover 的显示/隐藏切换。
+  tray.setContextMenu(null);
+
+  // 托盘点击会让 popover 失焦。先记录激活时间，避免 blur 先隐藏、click 又显示。
+  tray.on('mouse-down', markTrayActivation);
   tray.on('click', () => {
     togglePopover(app);
   });
-  updateTrayMenu(app, { togglePopover, openSettings });
+
+  const trayMenu = updateTrayMenu(app, { togglePopover, openSettings });
+  tray.on('right-click', (_event, bounds) => {
+    hidePopover(app, { animated: false });
+    tray.popUpContextMenu(trayMenu, bounds);
+  });
 
   return tray;
 }

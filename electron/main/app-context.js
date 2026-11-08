@@ -5,6 +5,7 @@ const state = {
   store: null,
   hideTimeout: null,
   pendingAuthCallback: null,
+  lastTrayActivationAt: 0,
 };
 
 function getAppState() {
@@ -13,6 +14,14 @@ function getAppState() {
 
 function setTray(tray) {
   state.tray = tray;
+}
+
+function markTrayActivation() {
+  state.lastTrayActivationAt = Date.now();
+}
+
+function isTrayActivationFresh(threshold = 500) {
+  return Date.now() - state.lastTrayActivationAt < threshold;
 }
 
 function setPopoverWindow(window) {
@@ -56,6 +65,8 @@ function peekPendingAuthCallback() {
 module.exports = {
   getAppState,
   setTray,
+  markTrayActivation,
+  isTrayActivationFresh,
   setPopoverWindow,
   setSettingsWindow,
   setStore,

@@ -3,7 +3,7 @@ const path = require('path');
 const { initLogFile, log } = require('./main/log');
 const { setStore, getAppState } = require('./main/app-context');
 const { createTray } = require('./main/tray-controller');
-const { createPopoverWindow, togglePopover, openSettings } = require('./main/window-controller');
+const { createPopoverWindow, togglePopover, hidePopover, openSettings } = require('./main/window-controller');
 const { setupUrlScheme, handleLaunchArgs } = require('./main/protocol-controller');
 const { getPlatformAdapter } = require('./main/platform');
 const { setupIPC } = require('./main/ipc');
@@ -55,7 +55,7 @@ app.whenReady().then(() => {
 
   setupUrlScheme(app);
   setupIPC(app);
-  createTray(app, { togglePopover, openSettings });
+  createTray(app, { togglePopover, hidePopover, openSettings });
   log('Tray created successfully');
   handleLaunchArgs(app, process.argv);
 

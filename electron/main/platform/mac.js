@@ -24,7 +24,11 @@ function hideDockIcon(app) {
 }
 
 function getPopoverWindowOptions() {
-  return {};
+  return {
+    // 透明 + vibrancy 在部分 macOS/GPU 状态下会造成可见性异常；
+    // 使用系统圆角的原生不透明窗口是更可靠的托盘弹层方案。
+    roundedCorners: true,
+  };
 }
 
 module.exports = {

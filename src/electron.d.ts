@@ -38,6 +38,7 @@ declare global {
       hidePopover: () => Promise<void>
       cancelHide: () => Promise<void>
       scheduleHide: (delay: number) => Promise<void>
+      onPopoverVisibility: (callback: (visible: boolean) => void) => void
       closeSettings: () => Promise<void>
       getVersion: () => Promise<string>
       showNotification: (title: string, body: string) => Promise<void>
@@ -57,6 +58,7 @@ declare global {
         hidePopover: () => Promise<void>
         cancelHide: () => Promise<void>
         scheduleHide: (delay: number) => Promise<void>
+        onPopoverVisibility: (callback: (visible: boolean) => void) => void
         closeSettings: () => Promise<void>
         getVersion: () => Promise<string>
         showNotification: (title: string, body: string) => Promise<void>
