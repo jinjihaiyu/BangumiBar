@@ -55,9 +55,9 @@ npm run pack:dir
 
 ## 产物位置
 
-- 未压缩应用目录：`release/`
-- 额外压缩后的发布包：`release-artifacts/`
-- 当前 macOS 未压缩应用常见位置：`release/mac-arm64/BangumiBar.app`
+- 未压缩应用目录：`release.noindex/`
+- 额外压缩后的发布包：`release-artifacts.noindex/`
+- 当前 macOS 未压缩应用常见位置：`release.noindex/mac-arm64/BangumiBar.app`
 
 如需对 `.app` 再压缩分发：
 

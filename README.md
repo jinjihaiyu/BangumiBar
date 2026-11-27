@@ -176,7 +176,7 @@ npm run dev
 ./scripts/release.sh
 ```
 
-脚本会自动在 `release/` 中查找 `BangumiBar.app`，并将压缩产物输出到 `release-artifacts/`。
+脚本会自动在 `release.noindex/` 中查找 `BangumiBar.app`，并将压缩产物输出到 `release-artifacts.noindex/`。
 
 #### 方式二：手动命令
 
@@ -198,18 +198,18 @@ npm run pack:linux
 
 ### 打包产物
 
-macOS 打包完成后，产物位于 `release/mac-arm64/BangumiBar.app`。
+macOS 打包完成后，产物位于 `release.noindex/mac-arm64/BangumiBar.app`。
 
 运行应用：
 
 ```bash
-open release/mac-arm64/BangumiBar.app
+open release.noindex/mac-arm64/BangumiBar.app
 ```
 
 或：
 
 ```bash
-./release/mac-arm64/BangumiBar.app/Contents/MacOS/BangumiBar
+./release.noindex/mac-arm64/BangumiBar.app/Contents/MacOS/BangumiBar
 ```
 
 ---

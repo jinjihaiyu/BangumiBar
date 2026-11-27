@@ -3,8 +3,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-RELEASE_DIR="$PROJECT_DIR/release"
-ARTIFACT_DIR="$PROJECT_DIR/release-artifacts"
+RELEASE_DIR="$PROJECT_DIR/release.noindex"
+ARTIFACT_DIR="$PROJECT_DIR/release-artifacts.noindex"
 
 # 从 package.json 读取版本号
 VERSION=$(node -p "require('$PROJECT_DIR/package.json').version")
@@ -16,7 +16,7 @@ echo "版本: v$VERSION"
 echo ""
 
 if [ ! -d "$RELEASE_DIR" ]; then
-  echo "[错误] 找不到 release/ 目录，请先运行构建脚本："
+  echo "[错误] 找不到 release.noindex/ 目录，请先运行构建脚本："
   echo "       ./scripts/build.sh --mac --win --linux"
   exit 1
 fi
@@ -109,8 +109,8 @@ echo "[3/3] 汇总"
 
 if [ "$COLLECTED" -eq 0 ]; then
   echo ""
-  echo "[错误] release-artifacts/ 为空，没有任何可发布的产物。"
-  echo "       release/ 里既没有安装包也没有 .app，请带平台参数重新构建："
+  echo "[错误] release-artifacts.noindex/ 为空，没有任何可发布的产物。"
+  echo "       release.noindex/ 里既没有安装包也没有 .app，请带平台参数重新构建："
   echo "         ./scripts/build.sh --mac --win --linux"
   exit 1
 fi
@@ -120,7 +120,7 @@ echo "=========================================="
 echo "  打包完成！共 $COLLECTED 个产物"
 echo "=========================================="
 echo ""
-echo "请在 GitHub Release 页面上传 release-artifacts/ 下的文件："
+echo "请在 GitHub Release 页面上传 release-artifacts.noindex/ 下的文件："
 while IFS= read -r artifact; do
   if [ -z "$artifact" ]; then continue; fi
   printf "  %-8s %s\n" "$(human_size "$artifact")" "$(basename "$artifact")"

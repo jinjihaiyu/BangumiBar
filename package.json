@@ -7,7 +7,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite build && electron .",
-    "clean": "rm -rf dist release release-artifacts",
+    "clean": "rm -rf dist release.noindex release-artifacts.noindex",
     "build": "vite build",
     "pack:dir": "electron-builder --dir",
     "pack:mac": "electron-builder --mac",
@@ -33,7 +33,7 @@
     "appId": "com.bangumibar.app",
     "productName": "BangumiBar",
     "directories": {
-      "output": "release",
+      "output": "release.noindex",
       "buildResources": "build"
     },
     "files": [

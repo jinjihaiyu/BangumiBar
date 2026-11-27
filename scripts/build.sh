@@ -36,7 +36,7 @@ usage() {
     wine 或 Docker，electron-builder 自带的原生工具链即可。
   * 架构参数对所有指定平台同时生效。例如 "--mac --win --arm64 --x64"
     会连 Windows arm64 一起打，按需组合以免浪费时间。
-  * 本脚本第一步会执行 npm run clean，即 rm -rf dist release release-artifacts。
+  * 本脚本第一步会执行 npm run clean，即 rm -rf dist release.noindex release-artifacts.noindex。
     上一轮的产物会被全部删除，需要保留请先备份。
 EOF
 }

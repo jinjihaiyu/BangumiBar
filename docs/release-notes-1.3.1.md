@@ -31,7 +31,7 @@
 
 ## 发布资产
 
-- `BangumiBar-1.3.1-mac-arm64.dmg`（或本地构建产物 `release/mac-arm64/BangumiBar.app`）
+- `BangumiBar-1.3.1-mac-arm64.dmg`（或本地构建产物 `release.noindex/mac-arm64/BangumiBar.app`）
 
 ## 升级说明
 
