@@ -346,7 +346,7 @@ export const AnimeCard = memo(function AnimeCard({
           {airDate && <span className="anime-date">{airDate}</span>}
           {isEnded && <span className="ended-badge">已完结</span>}
           {isAnime && nextEpisodeDate && !isEnded && <span className="next-ep-date">下一集 {nextEpisodeDate}</span>}
-          {!isAnime && item.type && (
+          {item.type && (
             <span className="collection-type-badge" data-type={item.type}>{getCollectionStatusLabel(item.type, subjectType)}</span>
           )}
           {userRating > 0 && (
