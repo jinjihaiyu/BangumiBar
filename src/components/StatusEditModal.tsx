@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StarRating } from './StarRating'
-import { getSubjectDisplayTitle } from '../utils'
+import { getCollectionStatusOptions, getSubjectDisplayTitle } from '../utils'
 
 export interface StatusEditModalProps {
   subject: any
@@ -28,23 +28,25 @@ export function StatusEditModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    setSelectedType(currentType || 3)
+    setRating(currentRating || 0)
+    setComment(currentComment || '')
+    setError('')
+  }, [subject?.id, currentType, currentRating, currentComment])
+
   const isAnime = subjectType === 2
-  const statusOptions = [
-    { value: 3, label: '在看', color: 'var(--accent)' },
-    { value: 1, label: '想看', color: 'var(--purple)' },
-    { value: 2, label: '看过', color: 'var(--green)' },
-    { value: 4, label: '搁置', color: 'var(--orange)' },
-    { value: 5, label: '抛弃', color: 'var(--red)' },
-  ]
+  const statusOptions = getCollectionStatusOptions(subjectType)
 
   const handleSubmit = async () => {
     setSubmitting(true)
     setError('')
 
     try {
+      const nextRating = rating > 0 ? rating : (currentRating > 0 ? 0 : undefined)
       await onSubmit({
         type: selectedType,
-        rating: rating > 0 ? rating : undefined,
+        rating: nextRating,
         comment: comment.trim() || undefined,
       })
       onClose()
@@ -92,8 +94,12 @@ export function StatusEditModal({
         <div className="status-modal-section">
           <div className="status-modal-label">评分 <span className="status-modal-label-hint">（选填）</span></div>
           <div className="status-modal-stars">
-            <StarRating value={rating} onChange={setRating} size={24} />
-            {rating > 0 && <span className="status-modal-score">{rating}分</span>}
+            <StarRating value={rating} onChange={setRating} size={22} />
+            {rating > 0 && (
+              <button type="button" className="status-modal-clear-rating" onClick={() => setRating(0)}>
+                清除
+              </button>
+            )}
           </div>
         </div>
         <div className="status-modal-section">

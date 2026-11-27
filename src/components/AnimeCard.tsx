@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
 import { api } from '../app/services/bangumi-service'
 import { CACHE_TTL_MS, episodeCache, persistentCache, storage } from '../app/services/cache-service'
-import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, isAired } from '../utils'
+import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getCollectionStatusLabel, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, getUserRating, isAired } from '../utils'
 
 type HoveredEpisode = { x: number; y: number; ep: any } | null
 
@@ -75,7 +75,8 @@ export const AnimeCard = memo(function AnimeCard({
   const endDate = item.subject?.endDate
   const isAiredSubject = airDate ? new Date(airDate) <= new Date() : false
   const isEnded = isAiredSubject && !!endDate && new Date(endDate) < new Date()
-  const rating = subject?.rating?.score || item.subject?.rating?.score || 0
+  const rating = subject?.rating?.score || item.subject?.rating?.score || item.subject?.score || 0
+  const userRating = getUserRating(item)
   const displayTitle = getSubjectDisplayTitle(subject || item.subject, showChineseTitle)
 
   const effectiveTotal = totalEpisodes > 0 ? totalEpisodes : episodes.length
@@ -324,8 +325,13 @@ export const AnimeCard = memo(function AnimeCard({
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </button>
+          {userRating > 0 && (
+            <div className="anime-user-rating" title={`我的评分 ${userRating} 分`}>
+              <span>我 {userRating}</span>
+            </div>
+          )}
           {rating > 0 && (
-            <div className="anime-rating">
+            <div className="anime-rating" title={`Bangumi 均分 ${rating.toFixed(1)}`}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
@@ -338,7 +344,7 @@ export const AnimeCard = memo(function AnimeCard({
           {isEnded && <span className="ended-badge">已完结</span>}
           {isAnime && nextEpisodeDate && !isEnded && <span className="next-ep-date">下一集 {nextEpisodeDate}</span>}
           {!isAnime && item.type && (
-            <span className="collection-type-badge" data-type={item.type}>{['', '想看', '看过', '在看', '搁置', '抛弃'][item.type] || ''}</span>
+            <span className="collection-type-badge" data-type={item.type}>{getCollectionStatusLabel(item.type, subjectType)}</span>
           )}
         </div>
         {isAnime && selectedFilter === 3 && (

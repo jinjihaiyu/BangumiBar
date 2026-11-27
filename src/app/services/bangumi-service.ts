@@ -129,15 +129,21 @@ export const api = {
     return true
   },
 
-  updateCollection: async (token: string, subjectId: number, data: { rating?: number; comment?: string; type?: number }) => {
+  updateCollection: async (token: string, subjectId: number, data: { rate?: number; rating?: number; comment?: string; type?: number }) => {
     const site = getActiveBangumiSite()
+    const payload: Record<string, unknown> = {}
+    if (data.type !== undefined) payload.type = data.type
+    const score = data.rate ?? data.rating
+    if (score !== undefined) payload.rate = score
+    if (data.comment !== undefined) payload.comment = data.comment
+
     const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     })
 
     if (!response.ok) {
@@ -145,6 +151,8 @@ export const api = {
       throw new BangumiApiError(`更新收藏失败: ${text}`, response.status)
     }
 
-    return response.json()
+    if (response.status === 204) return true
+    const text = await response.text()
+    return text ? JSON.parse(text) : true
   }
 }
