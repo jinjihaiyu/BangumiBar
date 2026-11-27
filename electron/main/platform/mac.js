@@ -5,8 +5,8 @@ function clamp(value, min, max) {
 }
 
 function getPopoverPosition({ trayBounds, windowBounds, workArea }) {
-  // MacBook 刘海屏托盘被遮挡或刚初始化时 trayBounds 可能为 0x0，回退到右上角展示。
-  const hasTrayBounds = Boolean(trayBounds && (trayBounds.width > 0 || trayBounds.height > 0));
+  // MacBook 刘海屏托盘被遮挡或系统隐藏图标时 trayBounds 可能为 0x0 或 height=0，回退到右上角展示。
+  const hasTrayBounds = Boolean(trayBounds && trayBounds.width > 0 && trayBounds.height > 0);
   const rawX = hasTrayBounds
     ? Math.round(trayBounds.x + trayBounds.width / 2 - windowBounds.width / 2)
     : Math.round((workArea ? workArea.x + workArea.width : windowBounds.width) - windowBounds.width - WINDOW_MARGIN);

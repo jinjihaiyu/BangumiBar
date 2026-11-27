@@ -1,9 +1,9 @@
-const { app, BrowserWindow } = require('electron');
+const { app, globalShortcut } = require('electron');
 const path = require('path');
 const { initLogFile, log } = require('./main/log');
 const { setStore, getAppState } = require('./main/app-context');
 const { createTray } = require('./main/tray-controller');
-const { createPopoverWindow, showPopover, togglePopover, hidePopover, openSettings } = require('./main/window-controller');
+const { showPopover, togglePopover, hidePopover, openSettings } = require('./main/window-controller');
 const { setupUrlScheme, handleLaunchArgs } = require('./main/protocol-controller');
 const { getPlatformAdapter } = require('./main/platform');
 const { setupIPC } = require('./main/ipc');
@@ -63,14 +63,21 @@ app.whenReady().then(() => {
     showPopover(app);
   }
 
+  // 全局快捷键兜底：即使菜单栏图标被系统或刘海隐藏，也能随时唤出/收起窗口。
+  const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+B', () => {
+    togglePopover(app);
+  });
+  log('Global shortcut CommandOrControl+Shift+B registered:', shortcutRegistered);
+
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createPopoverWindow(app);
-    }
+    showPopover(app);
   });
 });
 
 app.on('window-all-closed', () => {});
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
 app.on('before-quit', () => {
   app.isQuitting = true;
 });

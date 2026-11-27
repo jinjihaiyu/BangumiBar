@@ -64,6 +64,18 @@ function createTray(app, { togglePopover, hidePopover, openSettings }) {
 
   tray.setToolTip('BangumiBar');
   log('Tray bounds:', tray.getBounds());
+  setTimeout(() => {
+    if (tray.isDestroyed()) return;
+    const delayedBounds = tray.getBounds();
+    log('Tray bounds (after 1s):', delayedBounds);
+    if (process.platform === 'darwin' && delayedBounds.height === 0) {
+      log('WARNING: macOS 菜单栏未给托盘分配可见高度（height=0），可能被系统「菜单栏」设置、菜单栏管理工具（如 Ice/Bartender）隐藏，或被刘海遮挡。');
+      if (!app.isPackaged && app.dock) {
+        // 开发态兜底：恢复 Dock 图标，避免失焦隐藏后无法再次打开窗口。
+        app.dock.show();
+      }
+    }
+  }, 1000);
   // 不绑定 contextMenu：左键只做 popover 的显示/隐藏切换。
   tray.setContextMenu(null);
 
