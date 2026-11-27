@@ -239,6 +239,7 @@ function openSettings(app) {
 
 module.exports = {
   createPopoverWindow,
+  showPopover,
   togglePopover,
   hidePopover,
   openSettings,

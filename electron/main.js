@@ -3,7 +3,7 @@ const path = require('path');
 const { initLogFile, log } = require('./main/log');
 const { setStore, getAppState } = require('./main/app-context');
 const { createTray } = require('./main/tray-controller');
-const { createPopoverWindow, togglePopover, hidePopover, openSettings } = require('./main/window-controller');
+const { createPopoverWindow, showPopover, togglePopover, hidePopover, openSettings } = require('./main/window-controller');
 const { setupUrlScheme, handleLaunchArgs } = require('./main/protocol-controller');
 const { getPlatformAdapter } = require('./main/platform');
 const { setupIPC } = require('./main/ipc');
@@ -57,7 +57,11 @@ app.whenReady().then(() => {
   setupIPC(app);
   createTray(app, { togglePopover, hidePopover, openSettings });
   log('Tray created successfully');
-  handleLaunchArgs(app, process.argv);
+  const handledProtocol = handleLaunchArgs(app, process.argv);
+  const launchedHidden = Boolean(app.getLoginItemSettings?.().wasOpenedAsHidden);
+  if (!handledProtocol && !launchedHidden) {
+    showPopover(app);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
