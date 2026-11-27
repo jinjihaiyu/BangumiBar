@@ -6,16 +6,14 @@ const { log } = require('./log');
 function createTrayIcon() {
   // macOS 菜单栏使用系统 template icon，自动适配浅色、深色和高亮状态。
   if (process.platform === 'darwin') {
-    const templateIcon = nativeImage.createFromPath(path.join(__dirname, '../trayTemplate.png'));
+    const templatePath = path.join(__dirname, '../trayTemplate.png');
+    const templateIcon = nativeImage.createFromPath(templatePath);
     if (!templateIcon.isEmpty()) {
-      const templateIcon2x = nativeImage.createFromPath(path.join(__dirname, '../trayTemplate@2x.png'));
-      if (!templateIcon2x.isEmpty()) {
-        templateIcon.addRepresentation({
-          scaleFactor: 2,
-          buffer: templateIcon2x.toPNG(),
-        });
-      }
       templateIcon.setTemplateImage(true);
+      log('Tray template icon loaded:', {
+        size: templateIcon.getSize(),
+        isTemplate: templateIcon.isTemplateImage(),
+      });
       return templateIcon;
     }
   }
@@ -65,6 +63,7 @@ function createTray(app, { togglePopover, hidePopover, openSettings }) {
   setTray(tray);
 
   tray.setToolTip('BangumiBar');
+  log('Tray bounds:', tray.getBounds());
   // 不绑定 contextMenu：左键只做 popover 的显示/隐藏切换。
   tray.setContextMenu(null);
 
