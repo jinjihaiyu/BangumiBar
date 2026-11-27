@@ -110,6 +110,25 @@ export const api = {
     return true
   },
 
+  batchUpdateEpisodeProgress: async (token: string, subjectId: number, episodeIds: number[], status: number = 2) => {
+    const site = getActiveBangumiSite()
+    const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ episode_id: episodeIds, type: status })
+    })
+
+    if (!response.ok && response.status !== 204) {
+      const text = await response.text()
+      throw new BangumiApiError(`批量更新进度失败: ${text}`, response.status)
+    }
+
+    return true
+  },
+
   updateCollection: async (token: string, subjectId: number, data: { rating?: number; comment?: string; type?: number }) => {
     const site = getActiveBangumiSite()
     const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}`, {

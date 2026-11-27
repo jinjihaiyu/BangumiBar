@@ -224,8 +224,8 @@ html[data-electron-window='popover'].popover-hiding #app {
 /* ─── Filter Bar ────────────────────────────────────────────────────────── */
 .filter-bar {
   flex-shrink: 0;
-  display: flex; gap: 6px;
-  padding: 8px 14px 6px;
+  display: flex; gap: 4px;
+  padding: 8px 12px 6px;
   background: var(--bg-filter);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -237,9 +237,9 @@ html[data-electron-window='popover'].popover-hiding #app {
 }
 
 .filter-chip {
-  padding: 5px 14px;
+  padding: 4px 9px;
   border-radius: var(--radius-chip);
-  font-size: 12.5px; font-weight: 500;
+  font-size: 12px; font-weight: 500;
   background: transparent; color: var(--text-secondary);
   border: 0.5px solid transparent;
   cursor: pointer; white-space: nowrap;
@@ -546,6 +546,7 @@ html[data-electron-window='popover'].popover-hiding #app {
 
 .menu-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .menu-dot.watched { background: var(--green); }
+.menu-dot.batch { background: var(--accent); }
 .menu-dot.unwatched { background: rgba(255,255,255,0.2); border: 0.5px solid rgba(255,255,255,0.2); }
 
 /* ─── Toast ────────────────────────────────────────────────────────────── */

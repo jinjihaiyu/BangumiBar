@@ -14,12 +14,14 @@ export interface AnimeCardProps {
   showChineseTitle: boolean
   onToggleCard: (event: MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number, episodeNumber?: number) => Promise<boolean>
+  onMarkEpisodesUpTo: (subjectId: number, episodeIds: number[], upToEpisodeNumber?: number) => Promise<boolean>
   onOpenSubject: (subjectId: number) => void
   onShowEpisodeMenu: (
     event: MouseEvent,
     subjectId: number,
     episodeId: number,
-    onSelect: (newType: number) => void
+    episodeNumber: number,
+    actions: { onSelect: (newType: number) => void; onWatchUpTo: () => void }
   ) => void
   setHoveredEp: Dispatch<SetStateAction<HoveredEpisode>>
   onUnwatchedUpdate: (subjectId: number, count: number) => void
@@ -48,6 +50,7 @@ export const AnimeCard = memo(function AnimeCard({
   showChineseTitle,
   onToggleCard,
   onMarkEpisode,
+  onMarkEpisodesUpTo,
   onOpenSubject,
   onShowEpisodeMenu,
   setHoveredEp,
@@ -231,6 +234,70 @@ export const AnimeCard = memo(function AnimeCard({
     }
   }
 
+  // 右键「看到此集」：批量将当前集及之前未看本篇集数全部标为看过，失败时按集精确回滚。
+  const handleMarkUpTo = async (targetEpisodeId: number) => {
+    const currentEpisodes = episodesRef.current
+    const target = currentEpisodes.find((episode: any) => (episode.episode?.id || episode.id) === targetEpisodeId)
+    if (!target) return
+
+    const targetNumber = getEpisodeNumber(target)
+    const toMark = currentEpisodes.filter((episode: any) => {
+      const epNum = getEpisodeNumber(episode)
+      return epNum <= targetNumber && episode.type !== 2
+    })
+
+    if (toMark.length === 0) {
+      await onMarkEpisodesUpTo(subjectId, [], targetNumber)
+      return
+    }
+
+    const prevTypesById = new Map<number, number>()
+    const targetIds: number[] = []
+    for (const ep of toMark) {
+      const id = ep.episode?.id || ep.id
+      targetIds.push(id)
+      prevTypesById.set(id, ep.type)
+    }
+    const targetIdSet = new Set(targetIds)
+
+    setEpisodes(current => {
+      const updated = current.map(episode => {
+        const id = episode.episode?.id || episode.id
+        return targetIdSet.has(id) ? { ...episode, type: 2 } : episode
+      })
+      episodeCache.set(subjectId, { data: updated, time: Date.now() })
+      persistentCache.setEpisodeCache(subjectId, updated)
+      return updated
+    })
+
+    const ok = await onMarkEpisodesUpTo(subjectId, targetIds, targetNumber)
+    if (!ok) {
+      setEpisodes(current => {
+        const rolledBack = current.map(episode => {
+          const id = episode.episode?.id || episode.id
+          return prevTypesById.has(id) ? { ...episode, type: prevTypesById.get(id) } : episode
+        })
+        episodeCache.set(subjectId, { data: rolledBack, time: Date.now() })
+        persistentCache.setEpisodeCache(subjectId, rolledBack)
+        return rolledBack
+      })
+      return
+    }
+
+    const latestEpisodes = episodesRef.current
+    const total = effectiveTotal > 0 ? effectiveTotal : latestEpisodes.length
+    const isLastEpisode = total > 0 && targetNumber >= total
+    const allMainEpisodesCompleted = latestEpisodes.length > 0 && latestEpisodes.every((episode: any) => episode.type === 2)
+    const hasUpcomingMainEpisode = getNextEpisode(latestEpisodes, broadcastMinutes) !== null
+
+    if (isLastEpisode && allMainEpisodesCompleted && !hasUpcomingMainEpisode) {
+      const subjectForEdit = subject || item.subject || item
+      if (subjectForEdit) {
+        onEditStatus(subjectForEdit, subjectType, { ...item, type: 2 })
+      }
+    }
+  }
+
   return (
     <div className={`anime-card ${expandedCard === subjectId ? 'expanded' : ''} ${isEnded ? 'ended' : ''} ${!isAnime ? 'non-anime-card' : ''}`}>
       <img
@@ -312,8 +379,9 @@ export const AnimeCard = memo(function AnimeCard({
                       onContextMenu={event => {
                         event.preventDefault()
                         event.stopPropagation()
-                        onShowEpisodeMenu(event, subjectId, episodeId, newType => {
-                          void handleEpisodeAction(episodeId, newType)
+                        onShowEpisodeMenu(event, subjectId, episodeId, episodeNumber, {
+                          onSelect: newType => { void handleEpisodeAction(episodeId, newType) },
+                          onWatchUpTo: () => { void handleMarkUpTo(episodeId) },
                         })
                       }}
                       onMouseEnter={event => {

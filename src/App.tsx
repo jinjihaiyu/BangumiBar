@@ -24,7 +24,9 @@ type EpisodeContextMenu = {
   y: number
   subjectId: number
   episodeId: number
+  episodeNumber: number
   onSelect: (newType: number) => void
+  onWatchUpTo: () => void
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -90,6 +92,7 @@ function App() {
     loadSearchCorpus,
     resetCollectionState,
     markEpisode,
+    markEpisodesUpTo,
     handleStatusEdit,
     handleRefreshCollections,
     handleUnwatchedUpdate,
@@ -142,10 +145,18 @@ function App() {
     e: React.MouseEvent,
     subjectId: number,
     episodeId: number,
-    onSelect: (newType: number) => void
+    episodeNumber: number,
+    actions: { onSelect: (newType: number) => void; onWatchUpTo: () => void }
   ) => {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
-    setContextMenu({ x: rect.left, y: rect.bottom + 4, subjectId, episodeId, onSelect })
+    const menuWidth = 148
+    const menuHeight = 112
+    const margin = 8
+    const x = Math.min(Math.max(rect.left, margin), window.innerWidth - menuWidth - margin)
+    const y = rect.bottom + 4 + menuHeight > window.innerHeight - margin
+      ? Math.max(margin, rect.top - menuHeight - 4)
+      : rect.bottom + 4
+    setContextMenu({ x, y, subjectId, episodeId, episodeNumber, ...actions })
   }, [])
 
   const toggleCard = useCallback((e: React.MouseEvent, item: any) => {
@@ -300,6 +311,7 @@ function App() {
       onToggleTitleLanguage={onToggleTitleLanguage}
       onToggleCard={toggleCard}
       onMarkEpisode={markEpisode}
+      onMarkEpisodesUpTo={markEpisodesUpTo}
       onOpenSubject={openBangumiSubject}
       onShowEpisodeMenu={showEpisodeMenu}
       setHoveredEp={setHoveredEp}

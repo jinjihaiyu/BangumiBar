@@ -218,6 +218,65 @@ export function useCollections({
     return true
   }, [collections, getSubjectId, getValidToken, onToast, showDesktopNotifications])
 
+  const markEpisodesUpTo = useCallback(async (
+    subjectId: number,
+    episodeIds: number[],
+    upToEpisodeNumber?: number
+  ): Promise<boolean> => {
+    if (episodeIds.length === 0) {
+      onToast('此前集数均已看过')
+      return true
+    }
+
+    const token = await getValidToken()
+    if (!token) return false
+
+    const submit = async (activeToken: string, hasRetriedAuth = false): Promise<boolean> => {
+      try {
+        await api.batchUpdateEpisodeProgress(activeToken, subjectId, episodeIds, 2)
+        return true
+      } catch (requestError) {
+        if (isAuthError(requestError) && !hasRetriedAuth) {
+          const refreshed = await getValidToken({ forceRefresh: true })
+          if (refreshed && refreshed !== activeToken) {
+            return submit(refreshed, true)
+          }
+        }
+        return false
+      }
+    }
+
+    const ok = await submit(token)
+    if (!ok) {
+      onToast('批量标记失败，已恢复原状态')
+      return false
+    }
+
+    const targetLabel = upToEpisodeNumber !== undefined ? `第${upToEpisodeNumber}集` : `${episodeIds.length}集`
+    onToast(`已看到${targetLabel}（共标${episodeIds.length}集）`)
+
+    notifCountRef.current++
+    setNotificationCount(notifCountRef.current)
+
+    const colItem = collections.find(item => getSubjectId(item) === subjectId)
+    const name = getSubjectDisplayTitle(colItem)
+
+    setNotifications(prev => [buildNotification({
+      id: Date.now(),
+      type: 'progress',
+      text: `已看到${targetLabel}（批量标记${episodeIds.length}集）`,
+      subjectName: name,
+      subjectId,
+      time: new Date()
+    }), ...prev].slice(0, 50))
+
+    if (showDesktopNotifications) {
+      showDesktopNotification('BangumiBar', `《${name}》已看到${targetLabel}`)
+    }
+
+    return true
+  }, [collections, getSubjectId, getValidToken, onToast, showDesktopNotifications])
+
   const handleStatusEdit = useCallback(async (statusEditItem: any, data: { type?: number; rating?: number; comment?: string }) => {
     const token = await getValidToken()
     if (!token || !statusEditItem || !username) return false
@@ -291,6 +350,7 @@ export function useCollections({
     loadSearchCorpus,
     resetCollectionState,
     markEpisode,
+    markEpisodesUpTo,
     handleStatusEdit,
     handleRefreshCollections,
     handleUnwatchedUpdate,
