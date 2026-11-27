@@ -79,7 +79,6 @@ function App() {
     selectedFilter,
     selectedSubjectType,
     collections,
-    searchCorpus,
     isLoading,
     error,
     notificationCount,
@@ -90,7 +89,6 @@ function App() {
     setSelectedSubjectType,
     setShowNotifications,
     loadCollections,
-    loadSearchCorpus,
     resetCollectionState,
     markEpisode,
     markEpisodesUpTo,
@@ -113,9 +111,8 @@ function App() {
   useEffect(() => {
     onAuthenticatedRef.current = async ({ username: nextUsername, force }) => {
       await loadCollections({ force, usernameOverride: nextUsername })
-      await loadSearchCorpus(nextUsername)
     }
-  }, [loadCollections, loadSearchCorpus])
+  }, [loadCollections])
 
   const handleAuthCallback = useCallback((data: any) => {
     void handleCallback(data, async payload => {
@@ -201,23 +198,6 @@ function App() {
     return collections.filter(item => getSubjectSearchText(item).includes(query))
   }, [collections, searchQuery])
 
-  const searchResults = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    if (!query) return []
-    const seen = new Set<number>()
-    const merged: any[] = []
-    // 当前筛选列表优先并入搜索范围，确保在看过/搁置/抛弃列表也能搜到对应条目且不重复。
-    for (const item of [...collections, ...searchCorpus]) {
-      const id = getSubjectId(item)
-      if (id && seen.has(id)) continue
-      if (id) seen.add(id)
-      if (getSubjectSearchText(item).includes(query)) {
-        merged.push(item)
-      }
-    }
-    return merged
-  }, [collections, searchCorpus, searchQuery])
-
   const sortedCollections = useMemo(() => {
     const now = new Date()
     return [...filteredCollections].sort((a, b) => {
@@ -233,6 +213,8 @@ function App() {
       return 0
     })
   }, [filteredCollections, unwatchedCounts])
+
+  const searchResults = searchQuery.trim() ? sortedCollections : []
 
   // ─── Effects ──────────────────────────────────────────────────────────────
 

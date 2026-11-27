@@ -114,12 +114,7 @@ export function MainPage({
   onSubmitStatusEdit,
 }: MainPageProps) {
   const activeTypeLabel = subjectTypes.find(t => t.value === selectedSubjectType)?.label || '条目'
-  const doingLabel = getCollectionStatusLabel(3, selectedSubjectType)
-  const wishLabel = getCollectionStatusLabel(1, selectedSubjectType)
   const currentFilterLabel = getCollectionStatusLabel(selectedFilter, selectedSubjectType)
-  const searchScopeLabel = selectedFilter === 3 || selectedFilter === 1
-    ? `${doingLabel}+${wishLabel}`
-    : `${currentFilterLabel}+${doingLabel}+${wishLabel}`
 
   return (
     <div className="page">
@@ -152,7 +147,7 @@ export function MainPage({
         <input
           type="text"
           className="search-input"
-          placeholder={`搜索${activeTypeLabel}...`}
+          placeholder={`搜索${currentFilterLabel}${activeTypeLabel}...`}
           value={searchQuery}
           onChange={event => onSearchChange(event.target.value)}
         />
@@ -251,7 +246,7 @@ export function MainPage({
 
         {!isLoading && !error && !showNotifications && searchQuery.trim() && searchResults.length > 0 && (
           <>
-            <div className="search-results-hint">在{searchScopeLabel}中找到 {searchResults.length} 个结果</div>
+            <div className="search-results-hint">在「{currentFilterLabel}」中找到 {searchResults.length} 个结果</div>
             {searchResults.map((item, index) => (
               <AnimeCard
                 key={getSubjectId(item) || index}

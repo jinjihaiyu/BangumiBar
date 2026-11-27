@@ -41,7 +41,6 @@ export function useCollections({
   onToast,
 }: UseCollectionsArgs) {
   const [collections, setCollections] = useState<any[]>([])
-  const [searchCorpus, setSearchCorpus] = useState<any[]>([])
   const [selectedFilter, setSelectedFilter] = useState(3)
   const [selectedSubjectType, setSelectedSubjectType] = useState(2)
   const [isLoading, setIsLoading] = useState(false)
@@ -53,20 +52,6 @@ export function useCollections({
 
   const loadIdRef = useRef(0)
   const notifCountRef = useRef(0)
-
-  const loadSearchCorpus = useCallback(async (usernameOverride?: string) => {
-    const token = await getValidToken()
-    const targetUsername = usernameOverride || username
-    if (!token || !targetUsername) return
-
-    try {
-      const [doing, wish] = await Promise.all([
-        api.getCollections(token, targetUsername, 3, selectedSubjectType),
-        api.getCollections(token, targetUsername, 1, selectedSubjectType)
-      ])
-      setSearchCorpus([...doing, ...wish])
-    } catch {}
-  }, [getValidToken, selectedSubjectType, username])
 
   const fetchAndUpdate = useCallback(async (
     loadId: number,
@@ -133,7 +118,6 @@ export function useCollections({
     if (cached) {
       setCollections(cached)
       setIsLoading(false)
-      void loadSearchCorpus(username)
       return
     }
 
@@ -144,11 +128,10 @@ export function useCollections({
     }, 100)
 
     return () => window.clearTimeout(timer)
-  }, [isLoggedIn, loadCollections, loadSearchCorpus, selectedFilter, selectedSubjectType, username])
+  }, [isLoggedIn, loadCollections, selectedFilter, selectedSubjectType, username])
 
   const resetCollectionState = useCallback(() => {
     setCollections([])
-    setSearchCorpus([])
     setNotifications([])
     setNotificationCount(0)
     setShowNotifications(false)
@@ -296,12 +279,9 @@ export function useCollections({
 
     const cacheKey = `${username}_${selectedFilter}_${selectedSubjectType}`
     localStorage.removeItem(`bgmcache_${cacheKey}`)
-    await Promise.all([
-      loadCollections({ force: true, usernameOverride: username }),
-      loadSearchCorpus(username)
-    ])
+    await loadCollections({ force: true, usernameOverride: username })
     onToast('已刷新')
-  }, [loadCollections, loadSearchCorpus, onToast, selectedFilter, selectedSubjectType, username])
+  }, [loadCollections, onToast, selectedFilter, selectedSubjectType, username])
 
   const handleUnwatchedUpdate = useCallback((subjectId: number, count: number) => {
     setUnwatchedCounts(prev => {
@@ -321,7 +301,6 @@ export function useCollections({
     selectedFilter,
     selectedSubjectType,
     collections,
-    searchCorpus,
     isLoading,
     error,
     notificationCount,
@@ -332,7 +311,6 @@ export function useCollections({
     selectedFilter,
     selectedSubjectType,
     collections,
-    searchCorpus,
     isLoading,
     error,
     notificationCount,
@@ -347,7 +325,6 @@ export function useCollections({
     setSelectedSubjectType,
     setShowNotifications,
     loadCollections,
-    loadSearchCorpus,
     resetCollectionState,
     markEpisode,
     markEpisodesUpTo,
