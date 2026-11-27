@@ -1,6 +1,6 @@
 import { AnimeCard } from '../components/AnimeCard'
 import { StatusEditModal } from '../components/StatusEditModal'
-import { formatTime, getSubjectId } from '../utils'
+import { COLLECTION_STATUS_VALUES, formatTime, getCollectionStatusLabel, getSubjectId, getUserRating } from '../utils'
 
 type SubjectTypeOption = {
   value: number
@@ -28,7 +28,15 @@ type MainPageProps = {
   unwatchedCounts: Record<number, number>
   scheduleMap: Record<number, number>
   scheduleUnavailable: boolean
-  contextMenu: { x: number; y: number; subjectId: number; episodeId: number; onSelect: (newType: number) => void } | null
+  contextMenu: {
+    x: number
+    y: number
+    subjectId: number
+    episodeId: number
+    episodeNumber: number
+    onSelect: (newType: number) => void
+    onWatchUpTo: () => void
+  } | null
   hoveredEp: { x: number; y: number; ep: any } | null
   statusEditItem: { subject: any; subjectType: number; collectionItem: any } | null
   toast: string | null
@@ -42,12 +50,14 @@ type MainPageProps = {
   onToggleTitleLanguage: () => void
   onToggleCard: (event: React.MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number, episodeNumber?: number) => Promise<boolean>
+  onMarkEpisodesUpTo: (subjectId: number, episodeIds: number[], upToEpisodeNumber?: number) => Promise<boolean>
   onOpenSubject: (subjectId: number) => void
   onShowEpisodeMenu: (
     event: React.MouseEvent,
     subjectId: number,
     episodeId: number,
-    onSelect: (newType: number) => void
+    episodeNumber: number,
+    actions: { onSelect: (newType: number) => void; onWatchUpTo: () => void }
   ) => void
   setHoveredEp: React.Dispatch<React.SetStateAction<{ x: number; y: number; ep: any } | null>>
   onUnwatchedUpdate: (subjectId: number, count: number) => void
@@ -92,6 +102,7 @@ export function MainPage({
   onToggleTitleLanguage,
   onToggleCard,
   onMarkEpisode,
+  onMarkEpisodesUpTo,
   onOpenSubject,
   onShowEpisodeMenu,
   setHoveredEp,
@@ -102,7 +113,9 @@ export function MainPage({
   onCloseStatusEdit,
   onSubmitStatusEdit,
 }: MainPageProps) {
-  // 页面层只负责展示与事件转发，业务状态仍由 hooks 管理。
+  const activeTypeLabel = subjectTypes.find(t => t.value === selectedSubjectType)?.label || '条目'
+  const currentFilterLabel = getCollectionStatusLabel(selectedFilter, selectedSubjectType)
+
   return (
     <div className="page">
       <div className="header">
@@ -117,46 +130,46 @@ export function MainPage({
               {notificationCount > 99 ? '99+' : notificationCount}
             </button>
           )}
-          <button className="header-btn" onClick={onOpenSettings}>⚙</button>
+          <button className="header-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
       </div>
 
       <div className="search-bar">
-        <span className="search-icon">🔍</span>
-        <input type="text" className="search-input" placeholder="搜索番剧..." value={searchQuery} onChange={event => onSearchChange(event.target.value)} />
-        {searchQuery && <button className="search-clear" onClick={onClearSearch}>✕</button>}
+        <svg className="search-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="20" y1="20" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="text"
+          className="search-input"
+          placeholder={`搜索${currentFilterLabel}${activeTypeLabel}...`}
+          value={searchQuery}
+          onChange={event => onSearchChange(event.target.value)}
+        />
+        {searchQuery && <button className="search-clear" onClick={onClearSearch} aria-label="清空搜索">✕</button>}
       </div>
 
-      <div className="filter-bar">
-        {[{ value: 3, label: '在看' }, { value: 1, label: '想看' }].map(filter => (
-          <button
-            key={filter.value}
-            className={`filter-chip ${selectedFilter === filter.value ? 'active' : ''}`}
-            onClick={() => onSelectFilter(filter.value)}
-          >
-            {filter.label}
-          </button>
-        ))}
-        <div className="filter-spacer" />
-        <button
-          className={`filter-refresh-btn ${scheduleUnavailable ? 'degraded' : ''}`}
-          onClick={onRefreshCollections}
-          title={scheduleUnavailable ? '刷新（放送表未加载，更新状态暂按日期判断）' : '刷新'}
-        >↻</button>
-        <span className="filter-count">{searchQuery.trim() ? `${searchResults.length}条结果` : `${filteredCollections.length}部`}</span>
-      </div>
-
+      {/* 一级大类：动画 / 书籍 / 游戏（macOS Segmented Control 风格） */}
       <div className="type-bar">
-        {subjectTypes.map(subjectType => (
-          <button
-            key={subjectType.value}
-            className={`type-chip ${selectedSubjectType === subjectType.value ? 'active' : ''}`}
-            onClick={() => onSelectSubjectType(subjectType.value)}
-          >
-            <span className="type-icon">{subjectType.icon}</span>
-            <span className="type-label">{subjectType.label}</span>
-          </button>
-        ))}
+        <div className="type-segmented" role="tablist" aria-label="条目类型">
+          {subjectTypes.map(subjectType => (
+            <button
+              key={subjectType.value}
+              type="button"
+              role="tab"
+              aria-selected={selectedSubjectType === subjectType.value}
+              className={`type-segment ${selectedSubjectType === subjectType.value ? 'active' : ''}`}
+              onClick={() => onSelectSubjectType(subjectType.value)}
+            >
+              {subjectType.label}
+            </button>
+          ))}
+        </div>
         <div className="type-spacer" />
         <button
           type="button"
@@ -166,11 +179,31 @@ export function MainPage({
           onClick={onToggleTitleLanguage}
           title={showChineseTitle ? '当前显示中文译名，点击切换为原名' : '当前显示原名，点击切换为中文译名'}
         >
-          <span className="title-language-label">显示中文</span>
+          <span className="title-language-label">中文名</span>
           <span className="title-language-track">
             <span className="title-language-thumb" />
           </span>
         </button>
+      </div>
+
+      {/* 二级状态筛选：文案随条目类型动态切换（在看/在读/在玩 等） */}
+      <div className="filter-bar">
+        {COLLECTION_STATUS_VALUES.map(value => (
+          <button
+            key={value}
+            className={`filter-chip ${selectedFilter === value ? 'active' : ''}`}
+            onClick={() => onSelectFilter(value)}
+          >
+            {getCollectionStatusLabel(value, selectedSubjectType)}
+          </button>
+        ))}
+        <div className="filter-spacer" />
+        <button
+          className={`filter-refresh-btn ${scheduleUnavailable ? 'degraded' : ''}`}
+          onClick={onRefreshCollections}
+          title={scheduleUnavailable ? '刷新（放送表未加载，更新状态暂按日期判断）' : '刷新'}
+        >↻</button>
+        <span className="filter-count">{searchQuery.trim() ? `${searchResults.length}条` : `${filteredCollections.length}部`}</span>
       </div>
 
       <div className="content">
@@ -194,7 +227,7 @@ export function MainPage({
                   }}
                 >
                   <div className="notif-item-title">
-                    {notification.type === 'rating' ? '⭐' : '▶'} {notification.subjectName}
+                    {notification.type === 'rating' ? '★' : '▶'} {notification.subjectName}
                   </div>
                   <div className="notif-item-text">{notification.text}</div>
                   <div className="notif-item-time">{formatTime(notification.time)}</div>
@@ -206,7 +239,6 @@ export function MainPage({
 
         {!isLoading && !error && !showNotifications && searchQuery.trim() && searchResults.length === 0 && (
           <div className="empty-state">
-            <div className="empty-icon">🔍</div>
             <div className="empty-title">没有找到"{searchQuery}"</div>
             <div className="empty-hint">试试其他关键词</div>
           </div>
@@ -214,7 +246,7 @@ export function MainPage({
 
         {!isLoading && !error && !showNotifications && searchQuery.trim() && searchResults.length > 0 && (
           <>
-            <div className="search-results-hint">在在看+想看中找到 {searchResults.length} 个结果</div>
+            <div className="search-results-hint">在「{currentFilterLabel}」中找到 {searchResults.length} 个结果</div>
             {searchResults.map((item, index) => (
               <AnimeCard
                 key={getSubjectId(item) || index}
@@ -226,6 +258,7 @@ export function MainPage({
                 showChineseTitle={showChineseTitle}
                 onToggleCard={onToggleCard}
                 onMarkEpisode={onMarkEpisode}
+                onMarkEpisodesUpTo={onMarkEpisodesUpTo}
                 onOpenSubject={onOpenSubject}
                 onShowEpisodeMenu={onShowEpisodeMenu}
                 setHoveredEp={setHoveredEp}
@@ -241,9 +274,8 @@ export function MainPage({
 
         {!isLoading && !error && !showNotifications && !searchQuery.trim() && filteredCollections.length === 0 && (
           <div className="empty-state">
-            <div className="empty-icon">📺</div>
             <div className="empty-title">暂无内容</div>
-            <div className="empty-hint">去 Bangumi 添加一些番剧吧</div>
+            <div className="empty-hint">去 Bangumi 添加一些{activeTypeLabel}吧</div>
           </div>
         )}
 
@@ -258,6 +290,7 @@ export function MainPage({
             showChineseTitle={showChineseTitle}
             onToggleCard={onToggleCard}
             onMarkEpisode={onMarkEpisode}
+            onMarkEpisodesUpTo={onMarkEpisodesUpTo}
             onOpenSubject={onOpenSubject}
             onShowEpisodeMenu={onShowEpisodeMenu}
             setHoveredEp={setHoveredEp}
@@ -270,7 +303,10 @@ export function MainPage({
         ))}
       </div>
 
-      <div className="footer"><span>BangumiBar</span></div>
+      <div className="footer">
+        <span>BangumiBar</span>
+        <span className="footer-shortcut">⌘⇧B 唤出</span>
+      </div>
 
       {toast && <div className="toast">{toast}</div>}
 
@@ -278,6 +314,9 @@ export function MainPage({
         <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseLeave={onCloseContextMenu}>
           <div className="context-menu-item" onClick={() => { contextMenu.onSelect(2); onCloseContextMenu() }}>
             <span className="menu-dot watched" /> 标记看过
+          </div>
+          <div className="context-menu-item" onClick={() => { contextMenu.onWatchUpTo(); onCloseContextMenu() }}>
+            <span className="menu-dot batch" /> 看到第{contextMenu.episodeNumber}集
           </div>
           <div className="context-menu-item" onClick={() => { contextMenu.onSelect(0); onCloseContextMenu() }}>
             <span className="menu-dot unwatched" /> 取消看过
@@ -299,7 +338,7 @@ export function MainPage({
           subject={statusEditItem.subject}
           subjectType={statusEditItem.subjectType}
           currentType={statusEditItem.collectionItem?.type}
-          currentRating={statusEditItem.collectionItem?.rating ?? 0}
+          currentRating={getUserRating(statusEditItem.collectionItem)}
           currentComment={statusEditItem.collectionItem?.comment || ''}
           onClose={onCloseStatusEdit}
           onSubmit={onSubmitStatusEdit}

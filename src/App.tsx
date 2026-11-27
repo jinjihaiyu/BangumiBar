@@ -4,6 +4,7 @@ import { useAppSettings } from './app/hooks/useAppSettings'
 import { useAuth } from './app/hooks/useAuth'
 import { useCollections } from './app/hooks/useCollections'
 import { useSchedule } from './app/hooks/useSchedule'
+import { persistentCache } from './app/services/cache-service'
 import { desktopApi } from './platform/desktop-api'
 import { getSubjectId, getSubjectSearchText } from './utils'
 import { LoginPage } from './pages/LoginPage'
@@ -24,7 +25,9 @@ type EpisodeContextMenu = {
   y: number
   subjectId: number
   episodeId: number
+  episodeNumber: number
   onSelect: (newType: number) => void
+  onWatchUpTo: () => void
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
@@ -49,6 +52,7 @@ function App() {
     appSettings,
     activeSite,
     initializeSettings,
+    applyExternalSettings,
     updateAppSettings,
     isUsingMirror,
     mirrorHint,
@@ -76,7 +80,6 @@ function App() {
     selectedFilter,
     selectedSubjectType,
     collections,
-    searchCorpus,
     isLoading,
     error,
     notificationCount,
@@ -87,9 +90,9 @@ function App() {
     setSelectedSubjectType,
     setShowNotifications,
     loadCollections,
-    loadSearchCorpus,
     resetCollectionState,
     markEpisode,
+    markEpisodesUpTo,
     handleStatusEdit,
     handleRefreshCollections,
     handleUnwatchedUpdate,
@@ -109,22 +112,28 @@ function App() {
   useEffect(() => {
     onAuthenticatedRef.current = async ({ username: nextUsername, force }) => {
       await loadCollections({ force, usernameOverride: nextUsername })
-      await loadSearchCorpus(nextUsername)
     }
-  }, [loadCollections, loadSearchCorpus])
+  }, [loadCollections])
 
   const handleAuthCallback = useCallback((data: any) => {
-    void handleCallback(data, payload => onAuthenticatedRef.current(payload))
+    void handleCallback(data, async payload => {
+      await onAuthenticatedRef.current(payload)
+      void desktopApi.notifyAuthChanged({ isLoggedIn: true })
+    })
   }, [handleCallback])
 
   const handleManualCodeSubmit = useCallback(() => {
-    submitManualCode(payload => onAuthenticatedRef.current(payload))
+    submitManualCode(async payload => {
+      await onAuthenticatedRef.current(payload)
+      void desktopApi.notifyAuthChanged({ isLoggedIn: true })
+    })
   }, [submitManualCode])
 
   const logout = useCallback(() => {
     authLogout()
     resetCollectionState()
     setStatusEditItem(null)
+    void desktopApi.notifyAuthChanged({ isLoggedIn: false })
   }, [authLogout, resetCollectionState])
 
   const onStatusEditSubmit = useCallback(async (data: { type?: number; rating?: number; comment?: string }) => {
@@ -142,10 +151,18 @@ function App() {
     e: React.MouseEvent,
     subjectId: number,
     episodeId: number,
-    onSelect: (newType: number) => void
+    episodeNumber: number,
+    actions: { onSelect: (newType: number) => void; onWatchUpTo: () => void }
   ) => {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
-    setContextMenu({ x: rect.left, y: rect.bottom + 4, subjectId, episodeId, onSelect })
+    const menuWidth = 148
+    const menuHeight = 112
+    const margin = 8
+    const x = Math.min(Math.max(rect.left, margin), window.innerWidth - menuWidth - margin)
+    const y = rect.bottom + 4 + menuHeight > window.innerHeight - margin
+      ? Math.max(margin, rect.top - menuHeight - 4)
+      : rect.bottom + 4
+    setContextMenu({ x, y, subjectId, episodeId, episodeNumber, ...actions })
   }, [])
 
   const toggleCard = useCallback((e: React.MouseEvent, item: any) => {
@@ -182,12 +199,6 @@ function App() {
     return collections.filter(item => getSubjectSearchText(item).includes(query))
   }, [collections, searchQuery])
 
-  const searchResults = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
-    if (!query) return []
-    return searchCorpus.filter(item => getSubjectSearchText(item).includes(query))
-  }, [searchCorpus, searchQuery])
-
   const sortedCollections = useMemo(() => {
     const now = new Date()
     return [...filteredCollections].sort((a, b) => {
@@ -204,12 +215,15 @@ function App() {
     })
   }, [filteredCollections, unwatchedCounts])
 
+  const searchResults = searchQuery.trim() ? sortedCollections : []
+
   // ─── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false
 
     const initApp = async () => {
+      persistentCache.pruneExpired()
       if (IS_SETTINGS_WINDOW) setCurrentPage('settings')
       desktopApi.onAuthCallback(handleAuthCallback)
       await initializeSettings()
@@ -221,6 +235,25 @@ function App() {
     void initApp()
     return () => { cancelled = true }
   }, [checkLogin, handleAuthCallback, initializeSettings])
+
+  useEffect(() => {
+    const unsubscribeSettings = desktopApi.onAppSettingsChanged(nextSettings => {
+      applyExternalSettings(nextSettings)
+    })
+    const unsubscribeAuth = desktopApi.onAuthStateChanged(payload => {
+      if (!payload?.isLoggedIn) {
+        authLogout()
+        resetCollectionState()
+        setStatusEditItem(null)
+      } else {
+        void checkLogin(authPayload => onAuthenticatedRef.current(authPayload))
+      }
+    })
+    return () => {
+      unsubscribeSettings?.()
+      unsubscribeAuth?.()
+    }
+  }, [applyExternalSettings, authLogout, checkLogin, resetCollectionState])
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null)
@@ -300,6 +333,7 @@ function App() {
       onToggleTitleLanguage={onToggleTitleLanguage}
       onToggleCard={toggleCard}
       onMarkEpisode={markEpisode}
+      onMarkEpisodesUpTo={markEpisodesUpTo}
       onOpenSubject={openBangumiSubject}
       onShowEpisodeMenu={showEpisodeMenu}
       setHoveredEp={setHoveredEp}

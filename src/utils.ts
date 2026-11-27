@@ -102,6 +102,41 @@ export function formatNextEpisode(dateStr: string, broadcastMinutes?: number): s
   return `${base} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+export const COLLECTION_STATUS_VALUES = [3, 1, 2, 4, 5] as const
+
+const COLLECTION_STATUS_LABELS: Record<number, Record<number, string>> = {
+  1: { 1: '想读', 2: '读过', 3: '在读', 4: '搁置', 5: '抛弃' },
+  2: { 1: '想看', 2: '看过', 3: '在看', 4: '搁置', 5: '抛弃' },
+  4: { 1: '想玩', 2: '玩过', 3: '在玩', 4: '搁置', 5: '抛弃' },
+}
+
+const COLLECTION_STATUS_COLORS: Record<number, string> = {
+  3: 'var(--accent)',
+  1: 'var(--purple)',
+  2: 'var(--green)',
+  4: 'var(--orange)',
+  5: 'var(--red)',
+}
+
+export function getCollectionStatusLabel(statusType: number, subjectType = 2): string {
+  const map = COLLECTION_STATUS_LABELS[subjectType] || COLLECTION_STATUS_LABELS[2]
+  return map[statusType] || ''
+}
+
+export function getCollectionStatusOptions(subjectType = 2) {
+  return COLLECTION_STATUS_VALUES.map(value => ({
+    value,
+    label: getCollectionStatusLabel(value, subjectType),
+    color: COLLECTION_STATUS_COLORS[value],
+  }))
+}
+
+export function getUserRating(collectionItem: any): number {
+  const raw = collectionItem?.rate ?? collectionItem?.rating ?? 0
+  const score = Number(raw)
+  return Number.isFinite(score) && score > 0 ? score : 0
+}
+
 export function formatTime(date: Date): string {
   const now = new Date()
   const diff = now.getTime() - date.getTime()

@@ -14,6 +14,12 @@ const authAPI = {
   onWindowReady: callback => {
     ipcRenderer.on('window-ready', () => callback());
   },
+  notifyStateChanged: payload => ipcRenderer.invoke('notify-auth-changed', payload),
+  onStateChanged: callback => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('auth-state-changed', handler);
+    return () => ipcRenderer.removeListener('auth-state-changed', handler);
+  },
 };
 
 module.exports = {

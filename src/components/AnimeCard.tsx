@@ -1,7 +1,8 @@
 import { memo, useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
 import { api } from '../app/services/bangumi-service'
 import { CACHE_TTL_MS, episodeCache, persistentCache, storage } from '../app/services/cache-service'
-import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, isAired } from '../utils'
+import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getCollectionStatusLabel, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, getUserRating, isAired } from '../utils'
+import { StarRating } from './StarRating'
 
 type HoveredEpisode = { x: number; y: number; ep: any } | null
 
@@ -14,12 +15,14 @@ export interface AnimeCardProps {
   showChineseTitle: boolean
   onToggleCard: (event: MouseEvent, item: any) => void
   onMarkEpisode: (subjectId: number, episodeId: number, newType: number, episodeNumber?: number) => Promise<boolean>
+  onMarkEpisodesUpTo: (subjectId: number, episodeIds: number[], upToEpisodeNumber?: number) => Promise<boolean>
   onOpenSubject: (subjectId: number) => void
   onShowEpisodeMenu: (
     event: MouseEvent,
     subjectId: number,
     episodeId: number,
-    onSelect: (newType: number) => void
+    episodeNumber: number,
+    actions: { onSelect: (newType: number) => void; onWatchUpTo: () => void }
   ) => void
   setHoveredEp: Dispatch<SetStateAction<HoveredEpisode>>
   onUnwatchedUpdate: (subjectId: number, count: number) => void
@@ -48,6 +51,7 @@ export const AnimeCard = memo(function AnimeCard({
   showChineseTitle,
   onToggleCard,
   onMarkEpisode,
+  onMarkEpisodesUpTo,
   onOpenSubject,
   onShowEpisodeMenu,
   setHoveredEp,
@@ -68,11 +72,12 @@ export const AnimeCard = memo(function AnimeCard({
   const subjectId = getSubjectId(item)
   const broadcastMinutes = scheduleMap[subjectId]
   const totalEpisodes = item.subject?.eps || item.eps || 0
-  const airDate = item.subject?.airDate
+  const airDate = item.subject?.date || subject?.date || item.subject?.airDate
   const endDate = item.subject?.endDate
   const isAiredSubject = airDate ? new Date(airDate) <= new Date() : false
   const isEnded = isAiredSubject && !!endDate && new Date(endDate) < new Date()
-  const rating = subject?.rating?.score || item.subject?.rating?.score || 0
+  const rating = subject?.rating?.score || item.subject?.rating?.score || item.subject?.score || 0
+  const userRating = getUserRating(item)
   const displayTitle = getSubjectDisplayTitle(subject || item.subject, showChineseTitle)
 
   const effectiveTotal = totalEpisodes > 0 ? totalEpisodes : episodes.length
@@ -103,12 +108,21 @@ export const AnimeCard = memo(function AnimeCard({
       return
     }
 
+    // 收藏列表返回的 item.subject 已自带均分与日期时直接复用，跳过冗余详情请求。
+    const hasEmbeddedSummary = Boolean(
+      (item.subject?.score > 0 || item.subject?.rating?.score > 0) &&
+      (item.subject?.date || item.subject?.airDate)
+    )
+    if (hasEmbeddedSummary) {
+      return
+    }
+
     api.getSubject(subjectId).then(data => {
       if (loadId === subjectLoadId.current) {
         setSubject(data)
       }
     }).catch(() => {})
-  }, [subjectId])
+  }, [item.subject?.airDate, item.subject?.date, item.subject?.rating?.score, item.subject?.score, subjectId])
 
   // 仅在「在看动画」列表加载分集，避免书籍/游戏或想看列表发起无用请求。
   useEffect(() => {
@@ -231,6 +245,70 @@ export const AnimeCard = memo(function AnimeCard({
     }
   }
 
+  // 右键「看到此集」：批量将当前集及之前未看本篇集数全部标为看过，失败时按集精确回滚。
+  const handleMarkUpTo = async (targetEpisodeId: number) => {
+    const currentEpisodes = episodesRef.current
+    const target = currentEpisodes.find((episode: any) => (episode.episode?.id || episode.id) === targetEpisodeId)
+    if (!target) return
+
+    const targetNumber = getEpisodeNumber(target)
+    const toMark = currentEpisodes.filter((episode: any) => {
+      const epNum = getEpisodeNumber(episode)
+      return epNum <= targetNumber && episode.type !== 2
+    })
+
+    if (toMark.length === 0) {
+      await onMarkEpisodesUpTo(subjectId, [], targetNumber)
+      return
+    }
+
+    const prevTypesById = new Map<number, number>()
+    const targetIds: number[] = []
+    for (const ep of toMark) {
+      const id = ep.episode?.id || ep.id
+      targetIds.push(id)
+      prevTypesById.set(id, ep.type)
+    }
+    const targetIdSet = new Set(targetIds)
+
+    setEpisodes(current => {
+      const updated = current.map(episode => {
+        const id = episode.episode?.id || episode.id
+        return targetIdSet.has(id) ? { ...episode, type: 2 } : episode
+      })
+      episodeCache.set(subjectId, { data: updated, time: Date.now() })
+      persistentCache.setEpisodeCache(subjectId, updated)
+      return updated
+    })
+
+    const ok = await onMarkEpisodesUpTo(subjectId, targetIds, targetNumber)
+    if (!ok) {
+      setEpisodes(current => {
+        const rolledBack = current.map(episode => {
+          const id = episode.episode?.id || episode.id
+          return prevTypesById.has(id) ? { ...episode, type: prevTypesById.get(id) } : episode
+        })
+        episodeCache.set(subjectId, { data: rolledBack, time: Date.now() })
+        persistentCache.setEpisodeCache(subjectId, rolledBack)
+        return rolledBack
+      })
+      return
+    }
+
+    const latestEpisodes = episodesRef.current
+    const total = effectiveTotal > 0 ? effectiveTotal : latestEpisodes.length
+    const isLastEpisode = total > 0 && targetNumber >= total
+    const allMainEpisodesCompleted = latestEpisodes.length > 0 && latestEpisodes.every((episode: any) => episode.type === 2)
+    const hasUpcomingMainEpisode = getNextEpisode(latestEpisodes, broadcastMinutes) !== null
+
+    if (isLastEpisode && allMainEpisodesCompleted && !hasUpcomingMainEpisode) {
+      const subjectForEdit = subject || item.subject || item
+      if (subjectForEdit) {
+        onEditStatus(subjectForEdit, subjectType, { ...item, type: 2 })
+      }
+    }
+  }
+
   return (
     <div className={`anime-card ${expandedCard === subjectId ? 'expanded' : ''} ${isEnded ? 'ended' : ''} ${!isAnime ? 'non-anime-card' : ''}`}>
       <img
@@ -242,23 +320,30 @@ export const AnimeCard = memo(function AnimeCard({
       />
       <div className="anime-info">
         <div className="anime-title-row">
-          <div className="anime-title">{displayTitle}</div>
+          <div
+            className="anime-title clickable"
+            onClick={() => onOpenSubject(subjectId)}
+            title="在 Bangumi 中查看"
+          >
+            {displayTitle}
+          </div>
           <button
+            type="button"
             className="anime-edit-btn"
             onClick={event => {
               event.stopPropagation()
               onEditStatus(subject || item.subject || item, subjectType, item)
             }}
-            title="修改状态 · 评分"
+            title="修改条目 · 评分"
+            aria-label="修改条目与评分"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
           {rating > 0 && (
-            <div className="anime-rating">
+            <div className="anime-rating" title={`Bangumi 均分 ${rating.toFixed(1)}`}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
               </svg>
@@ -267,11 +352,24 @@ export const AnimeCard = memo(function AnimeCard({
           )}
         </div>
         <div className="anime-meta-row">
-          <span className="anime-date">{item.subject?.airDate}</span>
+          {airDate && <span className="anime-date">{airDate}</span>}
           {isEnded && <span className="ended-badge">已完结</span>}
           {isAnime && nextEpisodeDate && !isEnded && <span className="next-ep-date">下一集 {nextEpisodeDate}</span>}
-          {!isAnime && item.type && (
-            <span className="collection-type-badge" data-type={item.type}>{['', '想看', '看过', '在看', '搁置', '抛弃'][item.type] || ''}</span>
+          {item.type && (
+            <span className="collection-type-badge" data-type={item.type}>{getCollectionStatusLabel(item.type, subjectType)}</span>
+          )}
+          {userRating > 0 && (
+            <button
+              type="button"
+              className="anime-user-stars"
+              onClick={event => {
+                event.stopPropagation()
+                onEditStatus(subject || item.subject || item, subjectType, item)
+              }}
+              title={`我的评分 ${userRating} 分（点击修改）`}
+            >
+              <StarRating value={userRating} readonly size={10} compact />
+            </button>
           )}
         </div>
         {isAnime && selectedFilter === 3 && (
@@ -312,8 +410,9 @@ export const AnimeCard = memo(function AnimeCard({
                       onContextMenu={event => {
                         event.preventDefault()
                         event.stopPropagation()
-                        onShowEpisodeMenu(event, subjectId, episodeId, newType => {
-                          void handleEpisodeAction(episodeId, newType)
+                        onShowEpisodeMenu(event, subjectId, episodeId, episodeNumber, {
+                          onSelect: newType => { void handleEpisodeAction(episodeId, newType) },
+                          onWatchUpTo: () => { void handleMarkUpTo(episodeId) },
                         })
                       }}
                       onMouseEnter={event => {
@@ -355,28 +454,7 @@ export const AnimeCard = memo(function AnimeCard({
             </div>
           </div>
         )}
-        {selectedFilter === 3 && expandedCard === subjectId && !isAnime && (
-          <div className="non-anime-card-actions">
-            <button className="card-edit-btn" onClick={() => onEditStatus(subject || item.subject || item, subjectType, item)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              修改状态
-            </button>
-          </div>
-        )}
-        {selectedFilter !== 3 && (
-          <div className="card-edit-btn-row">
-            <button className="card-edit-btn" onClick={() => onEditStatus(subject || item.subject || item, subjectType, item)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              修改状态
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   )

@@ -1,10 +1,12 @@
 const { net } = require('electron');
+const { getAppState } = require('./app-context');
+const { normalizeMirrorDomain } = require('./settings-controller');
 const { log } = require('./log');
 
 // 渲染层已关闭跨域能力（webSecurity 恢复默认 + CSP 的 connect-src 'none'），
 // 所有出网请求集中到这里。URL 由渲染层拼好传入，但必须过白名单——
 // 白名单才是信任边界，渲染层传的 URL 只是入参。
-const ALLOWED_HOSTS = new Set([
+const STATIC_ALLOWED_HOSTS = new Set([
   'bgm.tv',
   'api.bgm.tv',
   'bangumi.one',
@@ -16,6 +18,19 @@ const ALLOWED_HOSTS = new Set([
 const APP_USER_AGENT = 'BangumiBar/1.0 (Electron)';
 const DEFAULT_TIMEOUT_MS = 15 * 1000;
 
+function isHostAllowed(hostname) {
+  const host = hostname.toLowerCase();
+  if (STATIC_ALLOWED_HOSTS.has(host)) return true;
+
+  const { store } = getAppState();
+  const customDomain = store ? normalizeMirrorDomain(store.get('mirrorDomain')) : null;
+  if (customDomain && (host === customDomain || host === `api.${customDomain}`)) {
+    return true;
+  }
+
+  return false;
+}
+
 function assertAllowedUrl(rawUrl) {
   let url;
   try {
@@ -25,7 +40,7 @@ function assertAllowedUrl(rawUrl) {
     throw new Error('请求地址无效');
   }
 
-  if (url.protocol !== 'https:' || !ALLOWED_HOSTS.has(url.hostname)) {
+  if (url.protocol !== 'https:' || !isHostAllowed(url.hostname)) {
     log('Http: rejected url outside allowlist', url.protocol, url.hostname);
     throw new Error(`不允许请求该地址: ${url.hostname}`);
   }
