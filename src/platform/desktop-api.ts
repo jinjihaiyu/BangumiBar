@@ -13,5 +13,6 @@ export const desktopApi = {
   setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => getElectronAPI()?.setAppSettings?.(settings),
   request: (options: BangumiRequestOptions) => getElectronAPI()?.request?.(options),
   oauthToken: (options: BangumiOAuthOptions) => getElectronAPI()?.oauthToken?.(options),
-  openAuthPage: (webBase: string) => getElectronAPI()?.openAuthPage?.(webBase)
+  openAuthPage: (webBase: string) => getElectronAPI()?.openAuthPage?.(webBase),
+  closeSettings: () => getElectronAPI()?.closeSettings?.()
 }

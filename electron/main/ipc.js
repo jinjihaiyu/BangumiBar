@@ -23,7 +23,20 @@ function setupIPC(app) {
     return store.delete(key);
   });
 
-  ipcMain.handle('open-external', (_event, url) => shell.openExternal(url));
+  ipcMain.handle('open-external', (_event, rawUrl) => {
+    let parsed;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      return Promise.reject(new Error('无效的外部链接'));
+    }
+
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return Promise.reject(new Error(`不允许打开该协议的链接: ${parsed.protocol}`));
+    }
+
+    return shell.openExternal(parsed.toString());
+  });
   ipcMain.handle('hide-popover', () => hidePopover(app));
   ipcMain.handle('cancel-hide', () => clearHideTimeout());
   ipcMain.handle('schedule-hide', (_event, delay) => {

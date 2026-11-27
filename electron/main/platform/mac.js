@@ -1,7 +1,20 @@
-function getPopoverPosition({ trayBounds, windowBounds }) {
+const WINDOW_MARGIN = 8;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getPopoverPosition({ trayBounds, windowBounds, workArea }) {
+  const rawX = Math.round(trayBounds.x + trayBounds.width / 2 - windowBounds.width / 2);
+  const rawY = Math.round(trayBounds.y + trayBounds.height + 6);
+
+  if (!workArea) {
+    return { x: rawX, y: rawY };
+  }
+
   return {
-    x: Math.round(trayBounds.x + trayBounds.width / 2 - windowBounds.width / 2),
-    y: Math.round(trayBounds.y - windowBounds.height - 10),
+    x: clamp(rawX, workArea.x + WINDOW_MARGIN, workArea.x + workArea.width - windowBounds.width - WINDOW_MARGIN),
+    y: clamp(rawY, workArea.y + WINDOW_MARGIN, workArea.y + workArea.height - windowBounds.height - WINDOW_MARGIN),
   };
 }
 

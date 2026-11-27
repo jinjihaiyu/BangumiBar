@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { api } from '../services/bangumi-service'
 import { clearAuthStorage, persistTokenData } from '../services/auth-service'
 import { storage } from '../services/cache-service'
+import { isAuthError } from '../services/http-service'
 
 type AuthenticatedPayload = {
   token: string
@@ -10,6 +11,10 @@ type AuthenticatedPayload = {
 }
 
 type HandleAuthSuccess = (payload: AuthenticatedPayload) => Promise<void>
+
+export type GetValidTokenOptions = {
+  forceRefresh?: boolean
+}
 
 export function useAuth() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -21,35 +26,8 @@ export function useAuth() {
   const [manualCode, setManualCode] = useState('')
   const [tokenExpired, setTokenExpired] = useState(false)
   const userLoadIdRef = useRef(0)
-
-  // 令牌刷新逻辑集中在这里，避免页面层直接感知存储细节。
-  const getValidToken = useCallback(async (): Promise<string | null> => {
-    let token = storage.getAccessToken()
-    if (!token) return null
-
-    const expiry = storage.getTokenExpiry()
-    if (expiry && Date.now() > expiry) {
-      const refreshToken = storage.get('refresh_token')
-      if (refreshToken) {
-        try {
-          const data = await api.refreshAccessToken(refreshToken)
-          persistTokenData(data)
-          token = data.access_token
-          setTokenExpired(false)
-        } catch {
-          clearAuthStorage()
-          setTokenExpired(true)
-          setIsLoggedIn(false)
-          return null
-        }
-      } else {
-        setTokenExpired(true)
-        return null
-      }
-    }
-
-    return token
-  }, [])
+  // 并发刷新互斥锁：多个请求同时遇到过期/401 时复用同一次 refresh_token 请求。
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null)
 
   const logout = useCallback(() => {
     clearAuthStorage()
@@ -58,7 +36,51 @@ export function useAuth() {
     setUsername('')
   }, [])
 
-  const loadUser = useCallback(async (token: string) => {
+  // 令牌刷新逻辑集中在这里，避免页面层直接感知存储细节。
+  const getValidToken = useCallback(async ({ forceRefresh = false }: GetValidTokenOptions = {}): Promise<string | null> => {
+    const token = storage.getAccessToken()
+    if (!token) return null
+
+    const expiry = storage.getTokenExpiry()
+    const isExpiredLocally = Boolean(expiry && Date.now() > expiry)
+
+    if (!forceRefresh && !isExpiredLocally) {
+      return token
+    }
+
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current
+    }
+
+    const refreshToken = storage.get('refresh_token')
+    if (!refreshToken) {
+      clearAuthStorage()
+      setTokenExpired(true)
+      setIsLoggedIn(false)
+      return null
+    }
+
+    const refreshTask = (async () => {
+      try {
+        const data = await api.refreshAccessToken(refreshToken)
+        persistTokenData(data)
+        setTokenExpired(false)
+        return data.access_token
+      } catch {
+        clearAuthStorage()
+        setTokenExpired(true)
+        setIsLoggedIn(false)
+        return null
+      } finally {
+        refreshPromiseRef.current = null
+      }
+    })()
+
+    refreshPromiseRef.current = refreshTask
+    return refreshTask
+  }, [])
+
+  const loadUser = useCallback(async (token: string, hasRetriedAuth = false): Promise<any> => {
     const currentLoadId = ++userLoadIdRef.current
 
     try {
@@ -66,13 +88,27 @@ export function useAuth() {
       if (currentLoadId === userLoadIdRef.current) {
         setUser(userData)
         setUsername(userData.username)
+        setError(null)
       }
       return userData
-    } catch {
-      logout()
+    } catch (requestError) {
+      if (isAuthError(requestError)) {
+        if (!hasRetriedAuth) {
+          const refreshed = await getValidToken({ forceRefresh: true })
+          if (refreshed && refreshed !== token) {
+            return loadUser(refreshed, true)
+          }
+        }
+        logout()
+        setTokenExpired(true)
+        return null
+      }
+
+      // 非 401 错误（如临时断网/超时）保留本地登录态，避免误踢下线。
+      setError(requestError instanceof Error ? requestError.message : '获取用户信息失败')
       return null
     }
-  }, [logout])
+  }, [getValidToken, logout])
 
   const openAuthPage = useCallback(() => {
     api.openAuthPage()
@@ -93,6 +129,7 @@ export function useAuth() {
       const tokenData = await api.getAccessToken(code)
       persistTokenData(tokenData)
       setIsLoggedIn(true)
+      setTokenExpired(false)
 
       const userData = await loadUser(tokenData.access_token)
       if (!userData) return
@@ -125,8 +162,9 @@ export function useAuth() {
     const userData = await loadUser(token)
     if (!userData) return
 
+    const latestToken = storage.getAccessToken() || token
     await onAuthenticated({
-      token,
+      token: latestToken,
       username: userData.username,
       force: false,
     })

@@ -11,6 +11,23 @@ export type HttpResponse = {
 
 export type HttpRequestInit = Omit<BangumiRequestOptions, 'url'>
 
+export class BangumiApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'BangumiApiError'
+    this.status = status
+  }
+}
+
+export function isAuthError(error: unknown): boolean {
+  if (error instanceof BangumiApiError) {
+    return error.status === 401
+  }
+  return error instanceof Error && error.message.includes('401')
+}
+
 export function toHttpResponse(result: BangumiHttpResult): HttpResponse {
   return {
     ok: result.ok,
