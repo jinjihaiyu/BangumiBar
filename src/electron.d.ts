@@ -45,6 +45,9 @@ declare global {
       getBroadcastSchedule: () => Promise<Record<number, number>>
       getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain?: string }>
       setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain: string }>) => Promise<void>
+      onAppSettingsChanged: (callback: (settings: { openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain?: string }) => void) => () => void
+      notifyAuthChanged: (payload: { isLoggedIn: boolean }) => Promise<void>
+      onAuthStateChanged: (callback: (payload: { isLoggedIn: boolean }) => void) => () => void
       request: (options: BangumiRequestOptions) => Promise<BangumiHttpResult>
       oauthToken: (options: BangumiOAuthOptions) => Promise<BangumiHttpResult>
       openAuthPage: (webBase: string) => Promise<void>

@@ -51,6 +51,7 @@ function App() {
     appSettings,
     activeSite,
     initializeSettings,
+    applyExternalSettings,
     updateAppSettings,
     isUsingMirror,
     mirrorHint,
@@ -117,17 +118,24 @@ function App() {
   }, [loadCollections, loadSearchCorpus])
 
   const handleAuthCallback = useCallback((data: any) => {
-    void handleCallback(data, payload => onAuthenticatedRef.current(payload))
+    void handleCallback(data, async payload => {
+      await onAuthenticatedRef.current(payload)
+      void desktopApi.notifyAuthChanged({ isLoggedIn: true })
+    })
   }, [handleCallback])
 
   const handleManualCodeSubmit = useCallback(() => {
-    submitManualCode(payload => onAuthenticatedRef.current(payload))
+    submitManualCode(async payload => {
+      await onAuthenticatedRef.current(payload)
+      void desktopApi.notifyAuthChanged({ isLoggedIn: true })
+    })
   }, [submitManualCode])
 
   const logout = useCallback(() => {
     authLogout()
     resetCollectionState()
     setStatusEditItem(null)
+    void desktopApi.notifyAuthChanged({ isLoggedIn: false })
   }, [authLogout, resetCollectionState])
 
   const onStatusEditSubmit = useCallback(async (data: { type?: number; rating?: number; comment?: string }) => {
@@ -196,8 +204,19 @@ function App() {
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return []
-    return searchCorpus.filter(item => getSubjectSearchText(item).includes(query))
-  }, [searchCorpus, searchQuery])
+    const seen = new Set<number>()
+    const merged: any[] = []
+    // 当前筛选列表优先并入搜索范围，确保在看过/搁置/抛弃列表也能搜到对应条目且不重复。
+    for (const item of [...collections, ...searchCorpus]) {
+      const id = getSubjectId(item)
+      if (id && seen.has(id)) continue
+      if (id) seen.add(id)
+      if (getSubjectSearchText(item).includes(query)) {
+        merged.push(item)
+      }
+    }
+    return merged
+  }, [collections, searchCorpus, searchQuery])
 
   const sortedCollections = useMemo(() => {
     const now = new Date()
@@ -232,6 +251,25 @@ function App() {
     void initApp()
     return () => { cancelled = true }
   }, [checkLogin, handleAuthCallback, initializeSettings])
+
+  useEffect(() => {
+    const unsubscribeSettings = desktopApi.onAppSettingsChanged(nextSettings => {
+      applyExternalSettings(nextSettings)
+    })
+    const unsubscribeAuth = desktopApi.onAuthStateChanged(payload => {
+      if (!payload?.isLoggedIn) {
+        authLogout()
+        resetCollectionState()
+        setStatusEditItem(null)
+      } else {
+        void checkLogin(authPayload => onAuthenticatedRef.current(authPayload))
+      }
+    })
+    return () => {
+      unsubscribeSettings?.()
+      unsubscribeAuth?.()
+    }
+  }, [applyExternalSettings, authLogout, checkLogin, resetCollectionState])
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null)

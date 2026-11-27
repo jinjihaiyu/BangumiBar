@@ -42,6 +42,16 @@ export function useAppSettings() {
     return nextSettings
   }, [resolveBangumiSiteMode])
 
+  const applyExternalSettings = useCallback((storedSettings: Partial<AppSettings>) => {
+    const nextSettings: AppSettings = {
+      ...DEFAULT_APP_SETTINGS,
+      ...storedSettings,
+      mirrorDomain: normalizeMirrorDomain(storedSettings.mirrorDomain),
+    }
+    setAppSettings(nextSettings)
+    void resolveBangumiSiteMode(nextSettings.useMirror, nextSettings.mirrorDomain)
+  }, [resolveBangumiSiteMode])
+
   const updateAppSettings = useCallback((settings: Partial<AppSettings>) => {
     const normalizedPatch: Partial<AppSettings> = { ...settings }
     if (Object.prototype.hasOwnProperty.call(settings, 'mirrorDomain')) {
@@ -87,6 +97,7 @@ export function useAppSettings() {
     activeSite,
     initializeSettings,
     resolveBangumiSiteMode,
+    applyExternalSettings,
     updateAppSettings,
     ...derived,
   }

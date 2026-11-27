@@ -7,6 +7,15 @@ const { requestBangumi } = require('./http-controller');
 const { exchangeToken, openAuthPage } = require('./auth-controller');
 const { hidePopover } = require('./window-controller');
 
+function broadcastToOtherWindows(sender, channel, payload) {
+  const { popoverWindow, settingsWindow } = getAppState();
+  for (const win of [popoverWindow, settingsWindow]) {
+    if (!win || win.isDestroyed() || win.webContents.isDestroyed()) continue;
+    if (sender && win.webContents === sender) continue;
+    win.webContents.send(channel, payload);
+  }
+}
+
 function setupIPC(app) {
   ipcMain.handle('get-store', (_event, key) => {
     const { store } = getAppState();
@@ -48,7 +57,13 @@ function setupIPC(app) {
   ipcMain.handle('get-version', () => app.getVersion());
   ipcMain.handle('show-notification', (_event, payload) => showDesktopNotification(payload));
   ipcMain.handle('get-app-settings', () => getAppSettings());
-  ipcMain.handle('set-app-settings', (_event, settings) => setAppSettings(app, settings));
+  ipcMain.handle('set-app-settings', (event, settings) => {
+    setAppSettings(app, settings);
+    broadcastToOtherWindows(event.sender, 'app-settings-changed', getAppSettings());
+  });
+  ipcMain.handle('notify-auth-changed', (event, payload) => {
+    broadcastToOtherWindows(event.sender, 'auth-state-changed', payload);
+  });
   ipcMain.handle('get-broadcast-schedule', () => fetchBroadcastSchedule());
 
   // 渲染层不再有跨域能力，Bangumi 的接口请求统一从这里出网（主机白名单在 http-controller）。
