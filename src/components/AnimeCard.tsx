@@ -72,7 +72,7 @@ export const AnimeCard = memo(function AnimeCard({
   const subjectId = getSubjectId(item)
   const broadcastMinutes = scheduleMap[subjectId]
   const totalEpisodes = item.subject?.eps || item.eps || 0
-  const airDate = item.subject?.airDate
+  const airDate = item.subject?.date || subject?.date || item.subject?.airDate
   const endDate = item.subject?.endDate
   const isAiredSubject = airDate ? new Date(airDate) <= new Date() : false
   const isEnded = isAiredSubject && !!endDate && new Date(endDate) < new Date()
@@ -311,19 +311,26 @@ export const AnimeCard = memo(function AnimeCard({
       />
       <div className="anime-info">
         <div className="anime-title-row">
-          <div className="anime-title">{displayTitle}</div>
+          <div
+            className="anime-title clickable"
+            onClick={() => onOpenSubject(subjectId)}
+            title="在 Bangumi 中查看"
+          >
+            {displayTitle}
+          </div>
           <button
+            type="button"
             className="anime-edit-btn"
             onClick={event => {
               event.stopPropagation()
               onEditStatus(subject || item.subject || item, subjectType, item)
             }}
-            title="修改状态 · 评分"
+            title="修改条目 · 评分"
+            aria-label="修改条目与评分"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
           {rating > 0 && (
@@ -333,7 +340,7 @@ export const AnimeCard = memo(function AnimeCard({
           )}
         </div>
         <div className="anime-meta-row">
-          <span className="anime-date">{item.subject?.airDate}</span>
+          {airDate && <span className="anime-date">{airDate}</span>}
           {isEnded && <span className="ended-badge">已完结</span>}
           {isAnime && nextEpisodeDate && !isEnded && <span className="next-ep-date">下一集 {nextEpisodeDate}</span>}
           {!isAnime && item.type && (
@@ -435,28 +442,7 @@ export const AnimeCard = memo(function AnimeCard({
             </div>
           </div>
         )}
-        {selectedFilter === 3 && expandedCard === subjectId && !isAnime && (
-          <div className="non-anime-card-actions">
-            <button className="card-edit-btn" onClick={() => onEditStatus(subject || item.subject || item, subjectType, item)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              修改状态
-            </button>
-          </div>
-        )}
-        {selectedFilter !== 3 && (
-          <div className="card-edit-btn-row">
-            <button className="card-edit-btn" onClick={() => onEditStatus(subject || item.subject || item, subjectType, item)}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-              修改状态
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   )

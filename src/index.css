@@ -356,20 +356,19 @@ html[data-electron-window='popover'].popover-hiding #app {
 /* ─── Anime Card ───────────────────────────────────────────────────────── */
 .anime-card {
   display: flex; gap: 10px;
-  padding: 10px;
+  padding: 9px 10px;
   background: var(--bg-card);
   border-radius: var(--radius-card);
-  margin-bottom: 7px;
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  margin-bottom: 6px;
+  cursor: default;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
   box-shadow: var(--shadow-card);
   position: relative;
   overflow: hidden;
 }
 .anime-card:hover { background: var(--bg-card-hover); }
-.anime-card:active { background: var(--bg-card-active); transform: scale(0.993); }
-.anime-card.expanded { background: var(--bg-card-active); box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06); }
-.anime-card.ended { opacity: 0.85; }
+.anime-card.expanded { background: var(--bg-card-active); box-shadow: 0 2px 8px rgba(0,0,0,0.42), 0 0 0 0.5px rgba(255,255,255,0.08); }
+.anime-card.ended { opacity: 0.86; }
 .anime-card.ended:hover { opacity: 1; }
 
 /* Poster */
@@ -380,12 +379,12 @@ html[data-electron-window='popover'].popover-hiding #app {
   object-fit: cover; flex-shrink: 0; display: block;
 }
 .poster.clickable { cursor: pointer; transition: opacity 0.15s; }
-.poster.clickable:hover { opacity: 0.75; }
+.poster.clickable:hover { opacity: 0.78; }
 
 /* Info block */
 .anime-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 
-.anime-title-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; min-height: 20px; }
+.anime-title-row { display: flex; align-items: center; gap: 5px; margin-top: 1px; min-height: 20px; }
 
 .anime-title {
   flex: 1; font-size: 13px; font-weight: 600;
@@ -395,6 +394,8 @@ html[data-electron-window='popover'].popover-hiding #app {
   -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   word-break: break-word;
 }
+.anime-title.clickable { cursor: pointer; transition: color 0.15s ease; }
+.anime-title.clickable:hover { color: #fff; }
 
 .anime-rating {
   display: inline-flex; align-items: center;
@@ -900,25 +901,15 @@ html[data-electron-window='popover'].popover-hiding #app {
 
 /* ─── Edit Button ───────────────────────────────────────────────────────── */
 .anime-edit-btn {
-  flex-shrink: 0; width: 24px; height: 24px; border: none;
-  background: rgba(255,255,255,0.06); color: var(--text-muted);
-  cursor: pointer; border-radius: 6px;
+  flex-shrink: 0; width: 22px; height: 22px; border: none;
+  background: transparent; color: var(--text-muted);
+  opacity: 0.45;
+  cursor: pointer; border-radius: 5px;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; padding: 0;
-  border: 0.5px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease; padding: 0;
 }
-.anime-edit-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); border-color: var(--border-subtle); }
-
-.card-edit-btn-row { display: flex; justify-content: flex-end; padding: 6px 0 0; }
-.non-anime-card-actions { display: flex; justify-content: flex-end; padding: 6px 0 0; }
-.card-edit-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 5px 10px; border: 0.5px solid var(--border-subtle);
-  border-radius: 6px; background: rgba(255,255,255,0.04);
-  color: var(--text-secondary); font-size: 11.5px; font-weight: 500;
-  cursor: pointer; transition: all 0.15s;
-}
-.card-edit-btn:hover { background: rgba(255,255,255,0.08); border-color: var(--border-active); color: var(--text-primary); }
+.anime-card:hover .anime-edit-btn { opacity: 0.9; }
+.anime-edit-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); color: var(--text-primary); }
 
 /* Collection type badge */
 .collection-type-badge {
@@ -997,15 +988,15 @@ html[data-electron-window='popover'].popover-hiding #app {
 /* ─── Footer ────────────────────────────────────────────────────────────── */
 .footer {
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 14px;
-  background: rgba(10, 10, 10, 0.8);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px;
+  background: var(--bg-header);
   font-size: 10px; color: var(--text-muted);
-  height: 28px; box-sizing: border-box;
+  height: 24px; box-sizing: border-box;
   border-top: 0.5px solid var(--border-subtle);
   position: relative; z-index: 10;
 }
+.footer-shortcut { letter-spacing: 0.02em; opacity: 0.85; }
 
 /* ─── Avatar utility ───────────────────────────────────────────────────── */
 .avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.06); object-fit: cover; }

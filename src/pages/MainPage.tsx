@@ -304,7 +304,10 @@ export function MainPage({
         ))}
       </div>
 
-      <div className="footer"><span>BangumiBar</span></div>
+      <div className="footer">
+        <span>BangumiBar</span>
+        <span className="footer-shortcut">⌘⇧B 唤出</span>
+      </div>
 
       {toast && <div className="toast">{toast}</div>}
 
