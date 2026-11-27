@@ -4,6 +4,7 @@ import { useAppSettings } from './app/hooks/useAppSettings'
 import { useAuth } from './app/hooks/useAuth'
 import { useCollections } from './app/hooks/useCollections'
 import { useSchedule } from './app/hooks/useSchedule'
+import { persistentCache } from './app/services/cache-service'
 import { desktopApi } from './platform/desktop-api'
 import { getSubjectId, getSubjectSearchText } from './utils'
 import { LoginPage } from './pages/LoginPage'
@@ -222,6 +223,7 @@ function App() {
     let cancelled = false
 
     const initApp = async () => {
+      persistentCache.pruneExpired()
       if (IS_SETTINGS_WINDOW) setCurrentPage('settings')
       desktopApi.onAuthCallback(handleAuthCallback)
       await initializeSettings()

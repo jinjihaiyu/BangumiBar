@@ -3,6 +3,39 @@ import { openAuthPage, requestAccessToken, requestRefreshToken } from './auth-se
 import { BangumiApiError, bangumiFetch } from './http-service'
 import { getActiveBangumiSite } from './settings-service'
 
+// 卡片级详情与分集请求共享并发队列，防止冷缓存下几十张卡片瞬间并发打满接口。
+const CARD_REQUEST_CONCURRENCY = 4
+
+function createConcurrencyQueue(limit: number) {
+  let active = 0
+  const pending: Array<() => void> = []
+
+  const release = () => {
+    active--
+    const next = pending.shift()
+    if (next) next()
+  }
+
+  return function enqueue<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = () => {
+        active++
+        task().then(resolve, reject).finally(release)
+      }
+
+      if (active < limit) {
+        run()
+      } else {
+        pending.push(run)
+      }
+    })
+  }
+}
+
+const enqueueCardRequest = createConcurrencyQueue(CARD_REQUEST_CONCURRENCY)
+const inFlightSubjects = new Map<number, Promise<any>>()
+const inFlightEpisodes = new Map<number, Promise<any[]>>()
+
 export const api = {
   openAuthPage: () => openAuthPage(),
 
@@ -26,14 +59,27 @@ export const api = {
     const cached = persistentCache.getSubjectCache(subjectId)
     if (cached) return cached
 
-    const site = getActiveBangumiSite()
-    const response = await bangumiFetch(`${site.apiBase}/v0/subjects/${subjectId}`)
+    const existing = inFlightSubjects.get(subjectId)
+    if (existing) return existing
 
-    if (!response.ok) throw new BangumiApiError(`获取条目详情失败 (${response.status})`, response.status)
+    const request = enqueueCardRequest(async () => {
+      const latestCached = persistentCache.getSubjectCache(subjectId)
+      if (latestCached) return latestCached
 
-    const data = await response.json()
-    persistentCache.setSubjectCache(subjectId, data)
-    return data
+      const site = getActiveBangumiSite()
+      const response = await bangumiFetch(`${site.apiBase}/v0/subjects/${subjectId}`)
+
+      if (!response.ok) throw new BangumiApiError(`获取条目详情失败 (${response.status})`, response.status)
+
+      const data = await response.json()
+      persistentCache.setSubjectCache(subjectId, data)
+      return data
+    }).finally(() => {
+      inFlightSubjects.delete(subjectId)
+    })
+
+    inFlightSubjects.set(subjectId, request)
+    return request
   },
 
   getCollections: async (token: string, username: string, type: number, subjectType: number) => {
@@ -78,17 +124,27 @@ export const api = {
   },
 
   getEpisodes: async (token: string, subjectId: number) => {
-    const site = getActiveBangumiSite()
-    const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+    const existing = inFlightEpisodes.get(subjectId)
+    if (existing) return existing
+
+    const request = enqueueCardRequest(async () => {
+      const site = getActiveBangumiSite()
+      const response = await bangumiFetch(`${site.apiBase}/v0/users/-/collections/${subjectId}/episodes`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) return []
+
+      const data = await response.json()
+      return data.data || []
+    }).finally(() => {
+      inFlightEpisodes.delete(subjectId)
     })
 
-    if (!response.ok) return []
-
-    const data = await response.json()
-    return data.data || []
+    inFlightEpisodes.set(subjectId, request)
+    return request
   },
 
   updateEpisodeProgress: async (token: string, episodeId: number, status: number = 2) => {

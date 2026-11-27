@@ -108,12 +108,21 @@ export const AnimeCard = memo(function AnimeCard({
       return
     }
 
+    // 收藏列表返回的 item.subject 已自带均分与日期时直接复用，跳过冗余详情请求。
+    const hasEmbeddedSummary = Boolean(
+      (item.subject?.score > 0 || item.subject?.rating?.score > 0) &&
+      (item.subject?.date || item.subject?.airDate)
+    )
+    if (hasEmbeddedSummary) {
+      return
+    }
+
     api.getSubject(subjectId).then(data => {
       if (loadId === subjectLoadId.current) {
         setSubject(data)
       }
     }).catch(() => {})
-  }, [subjectId])
+  }, [item.subject?.airDate, item.subject?.date, item.subject?.rating?.score, item.subject?.score, subjectId])
 
   // 仅在「在看动画」列表加载分集，避免书籍/游戏或想看列表发起无用请求。
   useEffect(() => {
