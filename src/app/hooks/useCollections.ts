@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../services/bangumi-service'
 import { persistentCache } from '../services/cache-service'
+import { isAuthError } from '../services/http-service'
 import { desktopApi } from '../../platform/desktop-api'
 import { getSubjectDisplayTitle } from '../../utils'
+import type { GetValidTokenOptions } from './useAuth'
 
 type NotificationItem = {
   id: number
@@ -20,7 +22,8 @@ function buildNotification(item: NotificationItem): NotificationItem {
 type UseCollectionsArgs = {
   username: string
   isLoggedIn: boolean
-  getValidToken: () => Promise<string | null>
+  showDesktopNotifications: boolean
+  getValidToken: (options?: GetValidTokenOptions) => Promise<string | null>
   getSubjectId: (item: any) => number
   onToast: (message: string) => void
 }
@@ -32,6 +35,7 @@ function showDesktopNotification(title: string, body: string) {
 export function useCollections({
   username,
   isLoggedIn,
+  showDesktopNotifications,
   getValidToken,
   getSubjectId,
   onToast,
@@ -64,7 +68,13 @@ export function useCollections({
     } catch {}
   }, [getValidToken, selectedSubjectType, username])
 
-  const fetchAndUpdate = useCallback(async (loadId: number, token: string, cacheKey: string, usernameOverride?: string) => {
+  const fetchAndUpdate = useCallback(async (
+    loadId: number,
+    token: string,
+    cacheKey: string,
+    usernameOverride?: string,
+    hasRetriedAuth = false
+  ) => {
     if (loadId !== loadIdRef.current) return
 
     const targetUsername = usernameOverride || username
@@ -75,14 +85,16 @@ export function useCollections({
 
       persistentCache.set(cacheKey, data)
       setCollections(data)
+      setError(null)
       setIsLoading(false)
     } catch (requestError: any) {
       if (loadId !== loadIdRef.current) return
 
-      if (requestError.message?.includes('401')) {
-        const refreshed = await getValidToken()
-        if (refreshed && loadId === loadIdRef.current) {
-          await fetchAndUpdate(loadId, refreshed, cacheKey, usernameOverride)
+      // 401 仅强制刷新并重试一次，且确认拿到新令牌才重发，彻底避免死循环。
+      if (isAuthError(requestError) && !hasRetriedAuth) {
+        const refreshed = await getValidToken({ forceRefresh: true })
+        if (refreshed && refreshed !== token && loadId === loadIdRef.current) {
+          await fetchAndUpdate(loadId, refreshed, cacheKey, usernameOverride, true)
           return
         }
       }
@@ -146,12 +158,39 @@ export function useCollections({
     notifCountRef.current = 0
   }, [])
 
-  const markEpisode = useCallback(async (subjectId: number, episodeId: number, newType: number) => {
+  const markEpisode = useCallback(async (
+    subjectId: number,
+    episodeId: number,
+    newType: number,
+    episodeNumber?: number
+  ): Promise<boolean> => {
     const token = await getValidToken()
-    if (!token) return
+    if (!token) return false
 
     const typeNames: Record<number, string> = { 0: '取消', 2: '看过', 3: '看不了' }
-    onToast(`已设为 ${typeNames[newType]}`)
+
+    const submit = async (activeToken: string, hasRetriedAuth = false): Promise<boolean> => {
+      try {
+        await api.updateEpisodeProgress(activeToken, episodeId, newType)
+        return true
+      } catch (requestError) {
+        if (isAuthError(requestError) && !hasRetriedAuth) {
+          const refreshed = await getValidToken({ forceRefresh: true })
+          if (refreshed && refreshed !== activeToken) {
+            return submit(refreshed, true)
+          }
+        }
+        return false
+      }
+    }
+
+    const ok = await submit(token)
+    if (!ok) {
+      onToast('操作失败，已恢复原状态')
+      return false
+    }
+
+    onToast(`已设为 ${typeNames[newType] ?? '已更新'}`)
 
     if (newType === 2) {
       notifCountRef.current++
@@ -159,25 +198,25 @@ export function useCollections({
 
       const colItem = collections.find(item => getSubjectId(item) === subjectId)
       const name = getSubjectDisplayTitle(colItem)
+      const epLabel = episodeNumber ?? (colItem?.ep_status ? colItem.ep_status + 1 : '?')
 
       setNotifications(prev => [buildNotification({
         id: Date.now(),
         type: 'progress',
-        text: `第${colItem?.ep_status ? colItem.ep_status + 1 : '?'}集已标记为看过`,
+        text: `第${epLabel}集已标记为看过`,
         subjectName: name,
         subjectId,
         time: new Date()
       }), ...prev].slice(0, 50))
 
-      showDesktopNotification('BangumiBar', `《${name}》标记为看过`)
+      // 遵循设置页的通知开关，且仅在接口成功后发送。
+      if (showDesktopNotifications) {
+        showDesktopNotification('BangumiBar', `《${name}》第${epLabel}集已标记为看过`)
+      }
     }
 
-    try {
-      await api.updateEpisodeProgress(token, episodeId, newType)
-    } catch {
-      onToast('操作失败')
-    }
-  }, [collections, getSubjectId, getValidToken, onToast])
+    return true
+  }, [collections, getSubjectId, getValidToken, onToast, showDesktopNotifications])
 
   const handleStatusEdit = useCallback(async (statusEditItem: any, data: { type?: number; rating?: number; comment?: string }) => {
     const token = await getValidToken()

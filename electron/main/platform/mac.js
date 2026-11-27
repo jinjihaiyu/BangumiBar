@@ -1,7 +1,26 @@
-function getPopoverPosition({ trayBounds, windowBounds }) {
+const WINDOW_MARGIN = 8;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getPopoverPosition({ trayBounds, windowBounds, workArea }) {
+  // MacBook 刘海屏托盘被遮挡或系统隐藏图标时 trayBounds 可能为 0x0 或 height=0，回退到右上角展示。
+  const hasTrayBounds = Boolean(trayBounds && trayBounds.width > 0 && trayBounds.height > 0);
+  const rawX = hasTrayBounds
+    ? Math.round(trayBounds.x + trayBounds.width / 2 - windowBounds.width / 2)
+    : Math.round((workArea ? workArea.x + workArea.width : windowBounds.width) - windowBounds.width - WINDOW_MARGIN);
+  const rawY = hasTrayBounds
+    ? Math.round(trayBounds.y + trayBounds.height + 6)
+    : Math.round((workArea ? workArea.y : 0) + WINDOW_MARGIN);
+
+  if (!workArea) {
+    return { x: rawX, y: rawY };
+  }
+
   return {
-    x: Math.round(trayBounds.x + trayBounds.width / 2 - windowBounds.width / 2),
-    y: Math.round(trayBounds.y - windowBounds.height - 10),
+    x: clamp(rawX, workArea.x + WINDOW_MARGIN, workArea.x + workArea.width - windowBounds.width - WINDOW_MARGIN),
+    y: clamp(rawY, workArea.y + WINDOW_MARGIN, workArea.y + workArea.height - windowBounds.height - WINDOW_MARGIN),
   };
 }
 

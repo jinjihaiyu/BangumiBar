@@ -1,6 +1,6 @@
 import { persistentCache } from './cache-service'
 import { openAuthPage, requestAccessToken, requestRefreshToken } from './auth-service'
-import { bangumiFetch } from './http-service'
+import { BangumiApiError, bangumiFetch } from './http-service'
 import { getActiveBangumiSite } from './settings-service'
 
 export const api = {
@@ -18,7 +18,7 @@ export const api = {
       }
     })
 
-    if (!response.ok) throw new Error('获取用户信息失败')
+    if (!response.ok) throw new BangumiApiError(`获取用户信息失败 (${response.status})`, response.status)
     return response.json()
   },
 
@@ -29,7 +29,7 @@ export const api = {
     const site = getActiveBangumiSite()
     const response = await bangumiFetch(`${site.apiBase}/v0/subjects/${subjectId}`)
 
-    if (!response.ok) throw new Error('获取条目详情失败')
+    if (!response.ok) throw new BangumiApiError(`获取条目详情失败 (${response.status})`, response.status)
 
     const data = await response.json()
     persistentCache.setSubjectCache(subjectId, data)
@@ -49,7 +49,7 @@ export const api = {
         }
       })
 
-      if (!response.ok) throw new Error('获取收藏列表失败')
+      if (!response.ok) throw new BangumiApiError(`获取收藏列表失败 (${response.status})`, response.status)
       return response.json()
     }
 
@@ -61,14 +61,19 @@ export const api = {
     const totalPages = Math.ceil(total / limit)
     const remainingPages = Array.from({ length: totalPages - 1 }, (_, index) => index + 2)
     const batchSize = 5
-    const batches: number[][] = []
+    const remainingItems: any[] = []
 
+    // 按批次顺序拉取，确保每批最多并发 batchSize 个分页请求，避免触发接口限流。
     for (let index = 0; index < remainingPages.length; index += batchSize) {
-      batches.push(remainingPages.slice(index, index + batchSize))
+      const batch = remainingPages.slice(index, index + batchSize)
+      const batchResults = await Promise.all(batch.map(page => fetchPage(page)))
+      for (const result of batchResults) {
+        if (Array.isArray(result.data)) {
+          remainingItems.push(...result.data)
+        }
+      }
     }
 
-    const batchResults = await Promise.all(batches.map(batch => Promise.all(batch.map(page => fetchPage(page)))))
-    const remainingItems = batchResults.flat().flatMap(result => result.data || [])
     return [...firstItems, ...remainingItems]
   },
 
@@ -99,7 +104,7 @@ export const api = {
 
     if (!response.ok && response.status !== 204) {
       const text = await response.text()
-      throw new Error(`更新进度失败: ${text}`)
+      throw new BangumiApiError(`更新进度失败: ${text}`, response.status)
     }
 
     return true
@@ -118,7 +123,7 @@ export const api = {
 
     if (!response.ok) {
       const text = await response.text()
-      throw new Error(`更新收藏失败: ${text}`)
+      throw new BangumiApiError(`更新收藏失败: ${text}`, response.status)
     }
 
     return response.json()

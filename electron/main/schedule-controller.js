@@ -115,9 +115,17 @@ async function fetchBroadcastSchedule() {
       // 与渲染层原有行为一致，能沿用应用的代理设置。
       // UA 保持 Chromium 默认，不套用 http-controller 里那个 BangumiBar UA：
       // 这里抓的是 HTML 页面，换 UA 可能拿到不同的标记，解析规则会跟着失配。
-      const response = await net.fetch(FANKUHUB_HOME, {
-        headers: { 'Cache-Control': 'no-cache' },
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15 * 1000);
+      let response;
+      try {
+        response = await net.fetch(FANKUHUB_HOME, {
+          headers: { 'Cache-Control': 'no-cache' },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!response.ok) {
         log('Schedule: fetch failed with status', response.status);

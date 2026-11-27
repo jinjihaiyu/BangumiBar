@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
+import { memo, useEffect, useRef, useState, type Dispatch, type MouseEvent, type SetStateAction } from 'react'
 import { api } from '../app/services/bangumi-service'
 import { CACHE_TTL_MS, episodeCache, persistentCache, storage } from '../app/services/cache-service'
 import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, isAired } from '../utils'
@@ -13,9 +13,14 @@ export interface AnimeCardProps {
   selectedFilter: number
   showChineseTitle: boolean
   onToggleCard: (event: MouseEvent, item: any) => void
-  onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
+  onMarkEpisode: (subjectId: number, episodeId: number, newType: number, episodeNumber?: number) => Promise<boolean>
   onOpenSubject: (subjectId: number) => void
-  onShowEpisodeMenu: (event: MouseEvent, subjectId: number, episodeId: number) => void
+  onShowEpisodeMenu: (
+    event: MouseEvent,
+    subjectId: number,
+    episodeId: number,
+    onSelect: (newType: number) => void
+  ) => void
   setHoveredEp: Dispatch<SetStateAction<HoveredEpisode>>
   onUnwatchedUpdate: (subjectId: number, count: number) => void
   unwatchedCounts: Record<number, number>
@@ -35,7 +40,7 @@ const MAX_AIR_TIMER_MS = 6 * 60 * 60 * 1000
 // 越过分界再算，避免定时器提前几毫秒触发导致判断仍是未播。
 const AIR_TIMER_SLACK_MS = 1000
 
-export function AnimeCard({
+export const AnimeCard = memo(function AnimeCard({
   item,
   index: _index,
   expandedCard,
@@ -53,6 +58,7 @@ export function AnimeCard({
   subjectType,
 }: AnimeCardProps) {
   const isAnime = subjectType === 2
+  const shouldTrackEpisodes = isAnime && selectedFilter === 3
   const [subject, setSubject] = useState<any>(null)
   const [episodes, setEpisodes] = useState<any[]>([])
   const [loadingEpisodes, setLoadingEpisodes] = useState(false)
@@ -61,7 +67,6 @@ export function AnimeCard({
 
   const subjectId = getSubjectId(item)
   const broadcastMinutes = scheduleMap[subjectId]
-  const watchedCount = item.ep_status || 0
   const totalEpisodes = item.subject?.eps || item.eps || 0
   const airDate = item.subject?.airDate
   const endDate = item.subject?.endDate
@@ -80,6 +85,13 @@ export function AnimeCard({
   // 区分「还没加载」和「加载完但是空的」：后者要如实上报 0，
   // 否则接口出错返回空列表时旧徽标会一直残留。
   const episodesLoaded = useRef(false)
+  const episodesRef = useRef<any[]>([])
+  episodesRef.current = episodes
+
+  // 分集加载完成后直接按本地状态统计已看集数，避免点击分集后进度条停留在旧快照。
+  const watchedCount = episodesLoaded.current
+    ? episodes.filter(ep => ep.type === 2).length
+    : (item.ep_status || 0)
 
   useEffect(() => {
     subjectLoadId.current++
@@ -98,10 +110,16 @@ export function AnimeCard({
     }).catch(() => {})
   }, [subjectId])
 
-  // 只负责取分集。待看数的计算见下一个 effect：
-  // 放在一起会让放送表异步到达时重跑整个加载流程，冷缓存下每张卡多打一次接口。
+  // 仅在「在看动画」列表加载分集，避免书籍/游戏或想看列表发起无用请求。
   useEffect(() => {
     episodeLoadId.current++
+    if (!shouldTrackEpisodes) {
+      episodesLoaded.current = false
+      setEpisodes([])
+      setLoadingEpisodes(false)
+      return
+    }
+
     const loadId = episodeLoadId.current
     const token = storage.getAccessToken()
     if (!token) return
@@ -147,16 +165,17 @@ export function AnimeCard({
         setLoadingEpisodes(false)
       }
     })
-  }, [subjectId])
+  }, [shouldTrackEpisodes, subjectId])
 
   // 分集、放送表、播出时刻任一变化都重算待看数，是唯一的上报入口。
   useEffect(() => {
-    if (!episodesLoaded.current) return
+    if (!shouldTrackEpisodes || !episodesLoaded.current) return
     onUnwatchedUpdate(subjectId, calcUnwatchedCount(episodes, broadcastMinutes))
-  }, [airTick, broadcastMinutes, episodes, onUnwatchedUpdate, subjectId])
+  }, [airTick, broadcastMinutes, episodes, onUnwatchedUpdate, shouldTrackEpisodes, subjectId])
 
   // 对准下一集的播出瞬间：到点自动翻转状态，不必等其它交互触发重渲染。
   useEffect(() => {
+    if (!shouldTrackEpisodes) return
     const airdate = nextEpisode?.episode?.airdate
     if (!airdate) return
     const target = getAirTransitionInstant(airdate, broadcastMinutes)
@@ -165,44 +184,50 @@ export function AnimeCard({
     const delay = Math.min(Math.max(target.getTime() - Date.now(), 0) + AIR_TIMER_SLACK_MS, MAX_AIR_TIMER_MS)
     const timer = window.setTimeout(() => setAirTick(tick => tick + 1), delay)
     return () => window.clearTimeout(timer)
-  }, [airTick, broadcastMinutes, nextEpisode])
+  }, [airTick, broadcastMinutes, nextEpisode, shouldTrackEpisodes])
 
-  // 卡片内部先做乐观更新，保持分集点击后的即时反馈。
-  const handleMark = (episodeId: number, newType: number) => {
-    let shouldOpenStatusEdit = false
-    let subjectForEdit: any = null
-    let collectionItemForEdit: any = null
+  // 统一处理左键点击与右键菜单：仅更新外层观看状态（不覆盖 episode.episode.type），
+  // 接口失败时按单集精确回滚，成功且看完最后一集后再弹出补评窗口。
+  const handleEpisodeAction = async (episodeId: number, newType: number) => {
+    const targetBefore = episodesRef.current.find((episode: any) => (episode.episode?.id || episode.id) === episodeId)
+    const prevType = targetBefore?.type
+    const episodeNumber = targetBefore ? getEpisodeNumber(targetBefore) : undefined
 
-    setEpisodes(prevEpisodes => {
-      const updatedEpisodes = prevEpisodes.map(episode => {
+    setEpisodes(current => {
+      const updated = current.map(episode => {
         const id = episode.episode?.id || episode.id
-        return id === episodeId
-          ? { ...episode, type: newType, episode: episode.episode ? { ...episode.episode, type: newType } : undefined }
-          : episode
+        return id === episodeId ? { ...episode, type: newType } : episode
       })
-
-      episodeCache.set(subjectId, { data: updatedEpisodes, time: Date.now() })
-      persistentCache.setEpisodeCache(subjectId, updatedEpisodes)
-      // 待看数由上面的 effect 随 episodes 变化统一上报，这里不再重复计算。
-
-      const total = effectiveTotal > 0 ? effectiveTotal : prevEpisodes.length
-      const targetEpisode = updatedEpisodes.find((episode: any) => (episode.episode?.id || episode.id) === episodeId)
-      const episodeNumber = getEpisodeNumber(targetEpisode)
-      const isLastEpisode = total > 0 && episodeNumber >= total && newType === 2
-      const allMainEpisodesCompleted = updatedEpisodes.length > 0 && updatedEpisodes.every((episode: any) => episode.type === 2)
-      const hasUpcomingMainEpisode = getNextEpisode(updatedEpisodes, broadcastMinutes) !== null
-
-      if (isLastEpisode && allMainEpisodesCompleted && !hasUpcomingMainEpisode) {
-        shouldOpenStatusEdit = true
-        subjectForEdit = subject || item.subject || item
-        collectionItemForEdit = { ...item, type: 2 }
-      }
-
-      return updatedEpisodes
+      episodeCache.set(subjectId, { data: updated, time: Date.now() })
+      persistentCache.setEpisodeCache(subjectId, updated)
+      return updated
     })
 
-    if (shouldOpenStatusEdit && subjectForEdit) {
-      onEditStatus(subjectForEdit, subjectType, collectionItemForEdit)
+    const ok = await onMarkEpisode(subjectId, episodeId, newType, episodeNumber)
+    if (!ok) {
+      setEpisodes(current => {
+        const rolledBack = current.map(episode => {
+          const id = episode.episode?.id || episode.id
+          return id === episodeId ? { ...episode, type: prevType } : episode
+        })
+        episodeCache.set(subjectId, { data: rolledBack, time: Date.now() })
+        persistentCache.setEpisodeCache(subjectId, rolledBack)
+        return rolledBack
+      })
+      return
+    }
+
+    const latestEpisodes = episodesRef.current
+    const total = effectiveTotal > 0 ? effectiveTotal : latestEpisodes.length
+    const isLastEpisode = total > 0 && typeof episodeNumber === 'number' && episodeNumber >= total && newType === 2
+    const allMainEpisodesCompleted = latestEpisodes.length > 0 && latestEpisodes.every((episode: any) => episode.type === 2)
+    const hasUpcomingMainEpisode = getNextEpisode(latestEpisodes, broadcastMinutes) !== null
+
+    if (isLastEpisode && allMainEpisodesCompleted && !hasUpcomingMainEpisode) {
+      const subjectForEdit = subject || item.subject || item
+      if (subjectForEdit) {
+        onEditStatus(subjectForEdit, subjectType, { ...item, type: 2 })
+      }
     }
   }
 
@@ -282,13 +307,14 @@ export function AnimeCard({
                       onClick={event => {
                         event.stopPropagation()
                         const nextType = isWatched ? 0 : 2
-                        handleMark(episodeId, nextType)
-                        onMarkEpisode(subjectId, episodeId, nextType)
+                        void handleEpisodeAction(episodeId, nextType)
                       }}
                       onContextMenu={event => {
                         event.preventDefault()
                         event.stopPropagation()
-                        onShowEpisodeMenu(event, subjectId, episodeId)
+                        onShowEpisodeMenu(event, subjectId, episodeId, newType => {
+                          void handleEpisodeAction(episodeId, newType)
+                        })
                       }}
                       onMouseEnter={event => {
                         const rect = (event.target as HTMLElement).getBoundingClientRect()
@@ -354,4 +380,4 @@ export function AnimeCard({
       </div>
     </div>
   )
-}
+})

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import './index.css'
 import { useAppSettings } from './app/hooks/useAppSettings'
 import { useAuth } from './app/hooks/useAuth'
@@ -18,12 +18,21 @@ const SUBJECT_TYPES = [
 
 // 设置窗口加载的是同一个入口，hash 在窗口生命周期内固定。
 const IS_SETTINGS_WINDOW = window.location.hash === '#settings'
+
+type EpisodeContextMenu = {
+  x: number
+  y: number
+  subjectId: number
+  episodeId: number
+  onSelect: (newType: number) => void
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'main' | 'settings'>('main')
   const [expandedCard, setExpandedCard] = useState<number | null>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; subjectId: number; episodeId: number } | null>(null)
+  const [contextMenu, setContextMenu] = useState<EpisodeContextMenu | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showChineseTitle, setShowChineseTitle] = useState(true)
@@ -88,6 +97,7 @@ function App() {
   } = useCollections({
     username,
     isLoggedIn,
+    showDesktopNotifications: appSettings.showNotifications,
     getValidToken,
     getSubjectId,
     onToast: showToast,
@@ -128,51 +138,71 @@ function App() {
 
   // ─── UI handlers ─────────────────────────────────────────────────────────
 
-  const showEpisodeMenu = (e: React.MouseEvent, subjectId: number, episodeId: number) => {
+  const showEpisodeMenu = useCallback((
+    e: React.MouseEvent,
+    subjectId: number,
+    episodeId: number,
+    onSelect: (newType: number) => void
+  ) => {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
-    setContextMenu({ x: rect.left, y: rect.bottom + 4, subjectId, episodeId })
-  }
+    setContextMenu({ x: rect.left, y: rect.bottom + 4, subjectId, episodeId, onSelect })
+  }, [])
 
-  const toggleCard = (e: React.MouseEvent, item: any) => {
+  const toggleCard = useCallback((e: React.MouseEvent, item: any) => {
     e.stopPropagation()
     const subjectId = getSubjectId(item)
     setExpandedCard(prev => prev === subjectId ? null : subjectId)
-  }
+  }, [])
 
-  const openBangumiSubject = (subjectId: number) => {
+  const openBangumiSubject = useCallback((subjectId: number) => {
     desktopApi.openExternal(`${activeSite.webBase}/subject/${subjectId}`)
-  }
+  }, [activeSite.webBase])
+
+  const onEditStatus = useCallback((subject: any, st: number, colItem: any) => {
+    setStatusEditItem({ subject, subjectType: st, collectionItem: colItem })
+  }, [])
 
   const onToggleTitleLanguage = useCallback(() => {
     setShowChineseTitle(current => !current)
   }, [])
 
+  const handleCloseSettings = useCallback(() => {
+    if (IS_SETTINGS_WINDOW) {
+      void desktopApi.closeSettings()
+      return
+    }
+    setCurrentPage('main')
+  }, [])
+
   // ─── Filter & sort ────────────────────────────────────────────────────────
 
-  const filteredCollections = searchQuery.trim()
-    ? collections.filter(item => {
-        return getSubjectSearchText(item).includes(searchQuery.toLowerCase())
-      })
-    : collections
+  const filteredCollections = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return collections
+    return collections.filter(item => getSubjectSearchText(item).includes(query))
+  }, [collections, searchQuery])
 
-  const searchResults = searchQuery.trim()
-    ? searchCorpus.filter(item => {
-        return getSubjectSearchText(item).includes(searchQuery.toLowerCase())
-      })
-    : []
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return []
+    return searchCorpus.filter(item => getSubjectSearchText(item).includes(query))
+  }, [searchCorpus, searchQuery])
 
-  const sortedCollections = [...filteredCollections].sort((a, b) => {
-    const aid = getSubjectId(a), bid = getSubjectId(b)
-    const aUnwatched = unwatchedCounts[aid] || 0
-    const bUnwatched = unwatchedCounts[bid] || 0
-    const aEnded = a.subject?.endDate && new Date(a.subject.endDate) < new Date()
-    const bEnded = b.subject?.endDate && new Date(b.subject.endDate) < new Date()
-    // 1. 有待看 > 无待看
-    if ((aUnwatched > 0) !== (bUnwatched > 0)) return aUnwatched > 0 ? -1 : 1
-    // 2. 未完结 > 已完结
-    if (aEnded !== bEnded) return aEnded ? 1 : -1
-    return 0
-  })
+  const sortedCollections = useMemo(() => {
+    const now = new Date()
+    return [...filteredCollections].sort((a, b) => {
+      const aid = getSubjectId(a), bid = getSubjectId(b)
+      const aUnwatched = unwatchedCounts[aid] || 0
+      const bUnwatched = unwatchedCounts[bid] || 0
+      const aEnded = a.subject?.endDate && new Date(a.subject.endDate) < now
+      const bEnded = b.subject?.endDate && new Date(b.subject.endDate) < now
+      // 1. 有待看 > 无待看
+      if ((aUnwatched > 0) !== (bUnwatched > 0)) return aUnwatched > 0 ? -1 : 1
+      // 2. 未完结 > 已完结
+      if (aEnded !== bEnded) return aEnded ? 1 : -1
+      return 0
+    })
+  }, [filteredCollections, unwatchedCounts])
 
   // ─── Effects ──────────────────────────────────────────────────────────────
 
@@ -225,7 +255,7 @@ function App() {
         mirrorHint={mirrorHint}
         isUsingMirror={isUsingMirror}
         activeSiteWebBase={activeSite.webBase}
-        onClose={() => setCurrentPage('main')}
+        onClose={handleCloseSettings}
         onOpenUserPage={() => desktopApi.openExternal(`${activeSite.webBase}/user/${user?.username}`)}
         onLogout={logout}
         onUpdateSettings={updateAppSettings}
@@ -274,7 +304,7 @@ function App() {
       onShowEpisodeMenu={showEpisodeMenu}
       setHoveredEp={setHoveredEp}
       onUnwatchedUpdate={handleUnwatchedUpdate}
-      onEditStatus={(subject, st, colItem) => setStatusEditItem({ subject, subjectType: st, collectionItem: colItem })}
+      onEditStatus={onEditStatus}
       clearNotifications={clearNotifications}
       onCloseContextMenu={() => setContextMenu(null)}
       onCloseStatusEdit={() => setStatusEditItem(null)}

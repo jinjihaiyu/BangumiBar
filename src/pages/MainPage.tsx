@@ -28,7 +28,7 @@ type MainPageProps = {
   unwatchedCounts: Record<number, number>
   scheduleMap: Record<number, number>
   scheduleUnavailable: boolean
-  contextMenu: { x: number; y: number; subjectId: number; episodeId: number } | null
+  contextMenu: { x: number; y: number; subjectId: number; episodeId: number; onSelect: (newType: number) => void } | null
   hoveredEp: { x: number; y: number; ep: any } | null
   statusEditItem: { subject: any; subjectType: number; collectionItem: any } | null
   toast: string | null
@@ -41,9 +41,14 @@ type MainPageProps = {
   onSelectSubjectType: (value: number) => void
   onToggleTitleLanguage: () => void
   onToggleCard: (event: React.MouseEvent, item: any) => void
-  onMarkEpisode: (subjectId: number, episodeId: number, newType: number) => void
+  onMarkEpisode: (subjectId: number, episodeId: number, newType: number, episodeNumber?: number) => Promise<boolean>
   onOpenSubject: (subjectId: number) => void
-  onShowEpisodeMenu: (event: React.MouseEvent, subjectId: number, episodeId: number) => void
+  onShowEpisodeMenu: (
+    event: React.MouseEvent,
+    subjectId: number,
+    episodeId: number,
+    onSelect: (newType: number) => void
+  ) => void
   setHoveredEp: React.Dispatch<React.SetStateAction<{ x: number; y: number; ep: any } | null>>
   onUnwatchedUpdate: (subjectId: number, count: number) => void
   onEditStatus: (subject: any, subjectType: number, collectionItem: any) => void
@@ -271,10 +276,10 @@ export function MainPage({
 
       {contextMenu && (
         <div className="context-menu" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseLeave={onCloseContextMenu}>
-          <div className="context-menu-item" onClick={() => { onMarkEpisode(contextMenu.subjectId, contextMenu.episodeId, 2); onCloseContextMenu() }}>
+          <div className="context-menu-item" onClick={() => { contextMenu.onSelect(2); onCloseContextMenu() }}>
             <span className="menu-dot watched" /> 标记看过
           </div>
-          <div className="context-menu-item" onClick={() => { onMarkEpisode(contextMenu.subjectId, contextMenu.episodeId, 0); onCloseContextMenu() }}>
+          <div className="context-menu-item" onClick={() => { contextMenu.onSelect(0); onCloseContextMenu() }}>
             <span className="menu-dot unwatched" /> 取消看过
           </div>
         </div>
