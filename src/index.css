@@ -396,25 +396,27 @@ html[data-electron-window='popover'].popover-hiding #app {
   word-break: break-word;
 }
 
-.anime-user-rating {
+.anime-rating {
   display: inline-flex; align-items: center;
-  font-size: 10.5px; font-weight: 600; color: #64b5ff;
+  font-size: 10.5px; font-weight: 600; color: var(--text-secondary);
   white-space: nowrap; flex-shrink: 0;
-  background: rgba(10, 132, 255, 0.14);
-  border: 0.5px solid rgba(10, 132, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
   padding: 1px 5px;
   border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
 
-.anime-rating {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 10.5px; font-weight: 600; color: var(--orange);
-  white-space: nowrap; flex-shrink: 0;
-  background: rgba(255, 159, 10, 0.11); padding: 1px 5px;
+.anime-user-stars {
+  display: inline-flex; align-items: center;
+  padding: 1px 5px;
+  margin-left: auto;
+  border: none;
   border-radius: 4px;
-  font-variant-numeric: tabular-nums;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
+.anime-user-stars:hover { background: rgba(255, 255, 255, 0.07); }
 .anime-meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .anime-date { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.01em; }
@@ -749,6 +751,11 @@ html[data-electron-window='popover'].popover-hiding #app {
 .star-score {
   margin-left: 6px; font-size: 13px; font-weight: 700;
   color: var(--orange); letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.star-score.compact {
+  margin-left: 4px; font-size: 10.5px; font-weight: 600;
+  color: var(--orange);
 }
 
 /* ─── Status Edit Modal ─────────────────────────────────────────────────── */

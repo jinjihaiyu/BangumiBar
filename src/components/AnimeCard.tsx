@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState, type Dispatch, type MouseEvent, type
 import { api } from '../app/services/bangumi-service'
 import { CACHE_TTL_MS, episodeCache, persistentCache, storage } from '../app/services/cache-service'
 import { calcUnwatchedCount, filterMainStoryEpisodes, formatNextEpisode, getAirTransitionInstant, getCollectionStatusLabel, getEpisodeNumber, getNextEpisode, getSubjectDisplayTitle, getSubjectId, getUserRating, isAired } from '../utils'
+import { StarRating } from './StarRating'
 
 type HoveredEpisode = { x: number; y: number; ep: any } | null
 
@@ -325,16 +326,8 @@ export const AnimeCard = memo(function AnimeCard({
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </button>
-          {userRating > 0 && (
-            <div className="anime-user-rating" title={`我的评分 ${userRating} 分`}>
-              <span>我 {userRating}</span>
-            </div>
-          )}
           {rating > 0 && (
             <div className="anime-rating" title={`Bangumi 均分 ${rating.toFixed(1)}`}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
               <span>{rating.toFixed(1)}</span>
             </div>
           )}
@@ -345,6 +338,19 @@ export const AnimeCard = memo(function AnimeCard({
           {isAnime && nextEpisodeDate && !isEnded && <span className="next-ep-date">下一集 {nextEpisodeDate}</span>}
           {!isAnime && item.type && (
             <span className="collection-type-badge" data-type={item.type}>{getCollectionStatusLabel(item.type, subjectType)}</span>
+          )}
+          {userRating > 0 && (
+            <button
+              type="button"
+              className="anime-user-stars"
+              onClick={event => {
+                event.stopPropagation()
+                onEditStatus(subject || item.subject || item, subjectType, item)
+              }}
+              title={`我的评分 ${userRating} 分（点击修改）`}
+            >
+              <StarRating value={userRating} readonly size={10} compact />
+            </button>
           )}
         </div>
         {isAnime && selectedFilter === 3 && (

@@ -5,9 +5,10 @@ type StarRatingProps = {
   onChange?: (value: number) => void
   readonly?: boolean
   size?: number
+  compact?: boolean
 }
 
-export function StarRating({ value, onChange, readonly = false, size = 18 }: StarRatingProps) {
+export function StarRating({ value, onChange, readonly = false, size = 18, compact = false }: StarRatingProps) {
   const [hover, setHover] = useState(-1)
   const displayStars = hover >= 0 ? hover / 2 : value / 2
 
@@ -20,8 +21,10 @@ export function StarRating({ value, onChange, readonly = false, size = 18 }: Sta
     else onChange(fullValue)
   }
 
+  const formattedScore = Number.isInteger(value) ? String(value) : value.toFixed(1)
+
   return (
-    <div className="star-rating" style={{ gap: 3 }}>
+    <div className={`star-rating ${compact ? 'compact' : ''}`} style={{ gap: compact ? 1.5 : 3 }}>
       {[1, 2, 3, 4, 5].map(index => {
         const filledPercent = Math.min(100, Math.max(0, (displayStars - (index - 1)) * 100))
         return (
@@ -43,7 +46,7 @@ export function StarRating({ value, onChange, readonly = false, size = 18 }: Sta
           </div>
         )
       })}
-      {value > 0 && <span className="star-score">{value.toFixed(1)}</span>}
+      {value > 0 && <span className={`star-score ${compact ? 'compact' : ''}`}>{formattedScore}</span>}
     </div>
   )
 }
