@@ -43,8 +43,8 @@ declare global {
       getVersion: () => Promise<string>
       showNotification: (title: string, body: string) => Promise<void>
       getBroadcastSchedule: () => Promise<Record<number, number>>
-      getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>
-      setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => Promise<void>
+      getAppSettings: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain?: string }>
+      setAppSettings: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain: string }>) => Promise<void>
       request: (options: BangumiRequestOptions) => Promise<BangumiHttpResult>
       oauthToken: (options: BangumiOAuthOptions) => Promise<BangumiHttpResult>
       openAuthPage: (webBase: string) => Promise<void>
@@ -71,8 +71,8 @@ declare global {
         openAuthPage: (webBase: string) => Promise<void>
       }
       settings: {
-        get: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>
-        update: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean }>) => Promise<void>
+        get: () => Promise<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain?: string }>
+        update: (settings: Partial<{ openAtLogin: boolean; showNotifications: boolean; useMirror: boolean; mirrorDomain: string }>) => Promise<void>
       }
     }
   }

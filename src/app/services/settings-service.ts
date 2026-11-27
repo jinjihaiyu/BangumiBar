@@ -1,9 +1,13 @@
 import { bangumiFetch } from './http-service'
 
+export const DEFAULT_MIRROR_DOMAIN = 'bangumi.one'
+const DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i
+
 export type AppSettings = {
   openAtLogin: boolean
   showNotifications: boolean
   useMirror: boolean
+  mirrorDomain: string
 }
 
 type BangumiSiteKey = 'origin' | 'mirror'
@@ -20,36 +24,55 @@ export type BangumiSiteConfig = {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   openAtLogin: false,
   showNotifications: true,
-  useMirror: false
+  useMirror: false,
+  mirrorDomain: DEFAULT_MIRROR_DOMAIN,
 }
 
-const BANGUMI_SITES: Record<BangumiSiteKey, BangumiSiteConfig> = {
-  origin: {
-    webBase: 'https://bgm.tv',
-    apiBase: 'https://api.bgm.tv',
-    lainBase: 'https://lain.bgm.tv',
-    fastBase: 'https://fast.bgm.tv',
-    nextBase: 'https://next.bgm.tv',
-    doujinBase: 'https://doujin.bgm.tv'
-  },
-  mirror: {
-    webBase: 'https://bangumi.one',
-    apiBase: 'https://api.bangumi.one',
-    lainBase: 'https://lain.bangumi.one',
-    fastBase: 'https://fast.bangumi.one',
-    nextBase: 'https://next.bangumi.one',
-    doujinBase: 'https://doujin.bangumi.one'
+export function cleanMirrorDomainInput(raw?: string): string {
+  if (typeof raw !== 'string') return ''
+  return raw
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '')
+    .replace(/:\d+$/, '')
+    .toLowerCase()
+}
+
+export function isValidMirrorDomain(raw?: string): boolean {
+  const cleaned = cleanMirrorDomainInput(raw)
+  return Boolean(cleaned && DOMAIN_PATTERN.test(cleaned))
+}
+
+export function normalizeMirrorDomain(raw?: string): string {
+  const cleaned = cleanMirrorDomainInput(raw)
+  return cleaned && DOMAIN_PATTERN.test(cleaned) ? cleaned : DEFAULT_MIRROR_DOMAIN
+}
+
+function buildSiteConfig(domain: string): BangumiSiteConfig {
+  return {
+    webBase: `https://${domain}`,
+    apiBase: `https://api.${domain}`,
+    lainBase: `https://lain.${domain}`,
+    fastBase: `https://fast.${domain}`,
+    nextBase: `https://next.${domain}`,
+    doujinBase: `https://doujin.${domain}`,
   }
 }
 
-let activeBangumiSite: BangumiSiteKey = 'origin'
+const ORIGIN_SITE = buildSiteConfig('bgm.tv')
 
-export function setActiveBangumiSite(useMirror: boolean) {
+let activeBangumiSite: BangumiSiteKey = 'origin'
+let activeMirrorDomain: string = DEFAULT_MIRROR_DOMAIN
+
+export function setActiveBangumiSite(useMirror: boolean, mirrorDomain?: string) {
+  if (mirrorDomain !== undefined) {
+    activeMirrorDomain = normalizeMirrorDomain(mirrorDomain)
+  }
   activeBangumiSite = useMirror ? 'mirror' : 'origin'
 }
 
 export function getActiveBangumiSite(): BangumiSiteConfig {
-  return BANGUMI_SITES[activeBangumiSite]
+  return activeBangumiSite === 'mirror' ? buildSiteConfig(activeMirrorDomain) : ORIGIN_SITE
 }
 
 async function canReachUrl(url: string, timeoutMs = 2500): Promise<boolean> {
@@ -71,8 +94,8 @@ async function canReachUrl(url: string, timeoutMs = 2500): Promise<boolean> {
 
 export async function canReachOriginBangumi(timeoutMs = 2500): Promise<boolean> {
   const [webOk, apiOk] = await Promise.all([
-    canReachUrl(BANGUMI_SITES.origin.webBase, timeoutMs),
-    canReachUrl(`${BANGUMI_SITES.origin.apiBase}/v0/subjects/1`, timeoutMs)
+    canReachUrl(ORIGIN_SITE.webBase, timeoutMs),
+    canReachUrl(`${ORIGIN_SITE.apiBase}/v0/subjects/1`, timeoutMs)
   ])
 
   return webOk && apiOk
